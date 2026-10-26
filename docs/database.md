@@ -9,7 +9,8 @@ erDiagram
 ```
 
 - `Instituicao`: identifica a escola. Nesta fase não existe gestão de várias escolas, mas os cadastros já pertencem a uma instituição.
-- `Usuario`: nome, e-mail único, hash de senha, perfil e COREN opcional. O enum aceita `aluno`, `professora` ou `coordenacao`; cada conta tem um perfil nesta versão.
+- `Usuario`: nome, e-mail único, hash de senha, perfil e COREN opcional. O enum aceita `aluno`, `professora` ou `coordenacao`; cada conta tem um perfil nesta versão. `ativo` bloqueia o acesso sem excluir o histórico. `tokenVersao` invalida sessões anteriores no logout e em mudanças de ativação. `criadoPorId` identifica a coordenação que fez o cadastro pela API.
+- `ConviteUsuario`: guarda somente o hash do token, destinatário, criador, validade, uso e revogação. O hash de senha do usuário fica nulo até o aceite. Convites não são listados nas rotas de usuários.
 - `Turma`: código único dentro de uma instituição. O mesmo código pode existir em instituições diferentes.
 
 Não colocamos `turmaId` em todo usuário: professoras e coordenação não pertencem a uma única turma como um aluno. A matrícula e os vínculos das professoras serão modelados nas próximas etapas.
@@ -20,7 +21,7 @@ Não colocamos `turmaId` em todo usuário: professoras e coordenação não pert
 
 `instituicaoId` é a chave estrangeira. A relação impede cadastrar usuário ou turma para uma escola inexistente. `onDelete: Restrict` impede apagar uma instituição enquanto ela tiver esses cadastros.
 
-`@unique` protege o e-mail contra duplicação exata no banco. Na autenticação vamos normalizar os e-mails antes de gravá-los para tratar variações de maiúsculas e espaços.
+`@unique` protege o e-mail contra duplicação no banco. A autenticação normaliza os e-mails com remoção de espaços nas pontas e conversão para minúsculas. A migration de autenticação inclui um CHECK SQL que exige e-mails em minúsculas e sem espaços nas pontas. Esse CHECK é mantido no SQL, pois não é representado no schema do Prisma.
 
 `@@unique([instituicaoId, codigo])` protege a combinação dos dois campos. O índice também ajuda nas consultas de turmas por instituição. Usuários possuem um índice separado para essa busca.
 

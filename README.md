@@ -1,6 +1,6 @@
 # Estágio Flow
 
-API para digitalizar o controle de frequência de estágio de uma escola técnica de enfermagem. Esta etapa entrega a base de instituição, usuários e turmas.
+API para digitalizar o controle de frequência de estágio de uma escola técnica de enfermagem. Já inclui a base do banco, autenticação e cadastro de usuários pela coordenação.
 
 ## Tecnologias
 
@@ -20,6 +20,7 @@ Preencha o `.env` localmente. Não publique suas credenciais:
 - `DATABASE_URL`: conexão da aplicação pelo transaction pooler do Supabase, porta 6543.
 - `DIRECT_URL`: conexão usada pelo Prisma Migrate. Use conexão direta na porta 5432 ou o session pooler na porta 5432 quando a rede não oferecer IPv6. Não use o transaction pooler para migrations.
 - `PORT`: porta HTTP, com padrão 3000.
+- `JWT_SECRET`: pelo menos 32 bytes aleatórios em hexadecimal. Gere localmente com o comando indicado no `.env.example` e substitua o valor de exemplo. Não compartilhe essa chave e não reutilize a senha do banco.
 
 Use as URLs do painel do seu projeto, com a senha codificada para URL. Preserve a verificação do certificado TLS; o exemplo utiliza `sslmode=verify-full`.
 
@@ -35,18 +36,25 @@ npm run dev
 
 `GET http://localhost:3000/health` retorna `{"status":"ok"}`. Esse endpoint verifica o processo HTTP; não consulta o banco.
 
-O seed cria uma instituição de demonstração e uma turma fictícia. Pode ser repetido sem duplicá-las. Usuários e senhas serão adicionados na etapa de autenticação; disciplinas serão incluídas quando seu modelo existir. Execute dados de demonstração apenas no banco destinado ao desenvolvimento.
+O seed cria uma instituição de demonstração e uma turma fictícia. Pode ser repetido sem duplicá-las e não cria contas ou senhas. Disciplinas serão incluídas quando seu modelo existir. Execute dados de demonstração apenas no banco destinado ao desenvolvimento.
+
+Para criar a primeira conta da coordenação, execute `npm run admin:create` em um terminal interativo. O comando pede nome, e-mail, ID da instituição e senha com confirmação e digitação oculta. Na instituição fictícia do seed, o ID é `00000000-0000-4000-8000-000000000001`.
+
+Veja [autenticação e cadastro de usuários](docs/authentication.md) para os endpoints, exemplos de teste e limitações desta versão.
 
 ## Verificação e migrations
 
 ```powershell
 npm run db:validate
 npm run typecheck
+npm test
 npm run build
 npm start
 ```
 
 O build gera o client antes de compilar. O código gerado fica em `src/generated/prisma`, fora do Git. Validar o schema, gerar o client e compilar não exige credenciais; aplicar migrations e executar o seed exige as URLs configuradas.
+
+Os testes usam Vitest, Supertest e um PostgreSQL temporário em memória (PGlite), na porta local 55442. Aplicam as migrations e exercitam as rotas reais com o adapter PostgreSQL. As URLs e a chave JWT são substituídas no processo de teste antes de carregar a aplicação; os testes não usam o Supabase nem apagam dados dele. A porta precisa estar disponível. PGlite não substitui a validação da implantação em PostgreSQL convencional e Supabase.
 
 Para futuras mudanças no schema:
 
@@ -64,15 +72,16 @@ As versões do Prisma CLI, client e adapter estão fixadas em 7.10.1; o lockfile
 
 ## Banco e autorização
 
-As tabelas `instituicao`, `usuario` e `turma` possuem RLS habilitado, sem políticas de acesso pela Data API. Isso bloqueia o acesso dessas tabelas pelos papéis comuns da API automática do Supabase. O usuário proprietário do banco e papéis com `BYPASSRLS` podem contornar RLS: portanto, a API Express ainda precisará validar autenticação e autorização em todas as operações de negócio.
+As tabelas `instituicao`, `usuario`, `turma` e `convite_usuario` possuem RLS habilitado, sem políticas de acesso pela Data API. Isso bloqueia o acesso dessas tabelas pelos papéis comuns da API automática do Supabase. O usuário proprietário do banco e papéis com `BYPASSRLS` podem contornar RLS: portanto, a API Express verifica autenticação e autorização nas rotas de usuários. Novas rotas de negócio também precisam dessas verificações.
 
-O campo `senha_hash` é reservado ao hash de senha, nunca à senha em texto puro. A normalização do e-mail e a validação dos dados de entrada serão implementadas junto com a autenticação.
+O campo `senha_hash` é reservado ao hash scrypt, nunca à senha em texto puro. É nulo enquanto a conta aguarda um convite. E-mails são normalizados antes de gravar e há uma restrição SQL contra e-mails não normalizados. Senhas, hashes e tokens de convites não aparecem na listagem de usuários.
 
 Consulte [a explicação do banco](docs/database.md) para entender as decisões desta etapa.
 
 ## Próximas etapas
 
-- Autenticação e autorização por perfil.
+- Importação de alunos por CSV com prévia e confirmação.
+- Integração de envio de convites por e-mail e recuperação de senha.
 - Disciplinas, campos e registros de estágio.
 - Aprovação em lote, histórico de correções e fechamento.
 - Painel da coordenação e relatórios.
