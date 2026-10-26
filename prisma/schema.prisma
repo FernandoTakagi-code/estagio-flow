@@ -27,19 +27,43 @@ model Instituicao {
 }
 
 model Usuario {
-  id            String      @id @default(uuid()) @db.Uuid
-  instituicaoId String      @map("instituicao_id") @db.Uuid
-  nome          String      @db.VarChar(200)
-  email         String      @unique @db.VarChar(254)
-  senhaHash     String      @map("senha_hash") @db.Text
-  perfil        Perfil
-  coren         String?     @db.VarChar(30)
-  criadoEm      DateTime    @default(now()) @map("criado_em") @db.Timestamptz(3)
-  atualizadoEm  DateTime    @updatedAt @map("atualizado_em") @db.Timestamptz(3)
-  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id], onDelete: Restrict)
+  id              String           @id @default(uuid()) @db.Uuid
+  instituicaoId   String           @map("instituicao_id") @db.Uuid
+  nome            String           @db.VarChar(200)
+  email           String           @unique @db.VarChar(254)
+  senhaHash       String?          @map("senha_hash") @db.Text
+  perfil          Perfil
+  coren           String?          @db.VarChar(30)
+  ativo           Boolean          @default(true)
+  tokenVersao     Int              @default(0) @map("token_versao")
+  criadoPorId     String?          @map("criado_por_id") @db.Uuid
+  criadoEm        DateTime         @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime         @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  instituicao     Instituicao      @relation(fields: [instituicaoId], references: [id], onDelete: Restrict)
+  criadoPor       Usuario?         @relation("CriadorUsuario", fields: [criadoPorId], references: [id], onDelete: Restrict)
+  usuariosCriados Usuario[]        @relation("CriadorUsuario")
+  convites        ConviteUsuario[] @relation("DestinatarioConvite")
+  convitesCriados ConviteUsuario[] @relation("CriadorConvite")
 
   @@index([instituicaoId])
   @@map("usuario")
+}
+
+model ConviteUsuario {
+  id          String    @id @default(uuid()) @db.Uuid
+  usuarioId   String    @map("usuario_id") @db.Uuid
+  criadoPorId String    @map("criado_por_id") @db.Uuid
+  tokenHash   String    @unique @map("token_hash") @db.VarChar(64)
+  expiraEm    DateTime  @map("expira_em") @db.Timestamptz(3)
+  usadoEm     DateTime? @map("usado_em") @db.Timestamptz(3)
+  revogadoEm  DateTime? @map("revogado_em") @db.Timestamptz(3)
+  criadoEm    DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  usuario     Usuario   @relation("DestinatarioConvite", fields: [usuarioId], references: [id], onDelete: Restrict)
+  criadoPor   Usuario   @relation("CriadorConvite", fields: [criadoPorId], references: [id], onDelete: Restrict)
+
+  @@index([usuarioId])
+  @@index([criadoPorId])
+  @@map("convite_usuario")
 }
 
 model Turma {
