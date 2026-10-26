@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Perfil {
+  aluno
+  professora
+  coordenacao
+
+  @@map("perfil")
+}
+
+model Instituicao {
+  id           String    @id @default(uuid()) @db.Uuid
+  nome         String    @db.VarChar(200)
+  criadoEm     DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  usuarios     Usuario[]
+  turmas       Turma[]
+
+  @@map("instituicao")
+}
+
+model Usuario {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @map("instituicao_id") @db.Uuid
+  nome          String      @db.VarChar(200)
+  email         String      @unique @db.VarChar(254)
+  senhaHash     String      @map("senha_hash") @db.Text
+  perfil        Perfil
+  coren         String?     @db.VarChar(30)
+  criadoEm      DateTime    @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm  DateTime    @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id], onDelete: Restrict)
+
+  @@index([instituicaoId])
+  @@map("usuario")
+}
+
+model Turma {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @map("instituicao_id") @db.Uuid
+  codigo        String      @db.VarChar(50)
+  criadoEm      DateTime    @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm  DateTime    @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id], onDelete: Restrict)
+
+  @@unique([instituicaoId, codigo])
+  @@map("turma")
+}

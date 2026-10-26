@@ -1,75 +1,84 @@
-🩺 Estágio Digital — API de Gestão e Validação de Estágios de Enfermagem
+# Estágio Flow
 
-Status: 🚧 Em Desenvolvimento (MVP)
+API para digitalizar o controle de frequência de estágio de uma escola técnica de enfermagem. Esta etapa entrega a base de instituição, usuários e turmas.
 
-API B2B desenvolvida para automatizar e digitalizar o controle de frequência e validação de horas de estágio para instituições de ensino técnico e superior.
+## Tecnologias
 
-🎯 O Problema
+Node.js 22.12+ ou 24, npm 11.19, TypeScript, Express, Prisma 7.10.1 e PostgreSQL no Supabase. O projeto usa módulos ESM.
 
-Escolas técnicas e faculdades de saúde frequentemente gerenciam o controle de estágio por meio de fichas físicas de papel. Esse formato apresenta diversos gargalos:
+## Executar localmente
 
-Refazer documentos: Pequenos erros exigem o preenchimento de uma nova folha.
+```powershell
+git clone https://github.com/FernandoTakagi-code/estagio-flow.git
+cd estagio-flow
+npm ci
+Copy-Item .env.example .env
+```
 
-Risco de perda: Folhas físicas são facilmente danificadas ou perdidas.
+Preencha o `.env` localmente. Não publique suas credenciais:
 
-Carga operacional de revisão: Dificuldade e lentidão da coordenação para consolidar e validar as horas cumpridas.
+- `DATABASE_URL`: conexão da aplicação pelo transaction pooler do Supabase, porta 6543.
+- `DIRECT_URL`: conexão usada pelo Prisma Migrate. Use conexão direta na porta 5432 ou o session pooler na porta 5432 quando a rede não oferecer IPv6. Não use o transaction pooler para migrations.
+- `PORT`: porta HTTP, com padrão 3000.
 
-💡 A Solução
+Use as URLs do painel do seu projeto, com a senha codificada para URL. Preserve a verificação do certificado TLS; o exemplo utiliza `sslmode=verify-full`.
 
-O Estágio Digital substitui o papel por uma aprovação digital com trilha de auditoria, reduzindo erros, eliminando retrabalho e permitindo acompanhamento em tempo real pelas coordenações.
+Se ocorrer `SELF_SIGNED_CERT_IN_CHAIN`, baixe o certificado CA em **Database > Settings > SSL Configuration** no painel do Supabase. Salve-o localmente em `certs/supabase-ca.crt` e acrescente `&sslrootcert=certs/supabase-ca.crt` às duas URLs. O certificado deve vir do painel oficial; não desative a validação TLS para contornar o erro.
 
-🛠️ Tech Stack
+Em um banco de desenvolvimento vazio, aplique a migration versionada e execute o seed explicitamente:
 
-Linguagem: Node.js + TypeScript
+```powershell
+npm run db:deploy
+npm run db:seed
+npm run dev
+```
 
-Framework Web: Express
+`GET http://localhost:3000/health` retorna `{"status":"ok"}`. Esse endpoint verifica o processo HTTP; não consulta o banco.
 
-ORM: Prisma
+O seed cria uma instituição de demonstração e uma turma fictícia. Pode ser repetido sem duplicá-las. Usuários e senhas serão adicionados na etapa de autenticação; disciplinas serão incluídas quando seu modelo existir. Execute dados de demonstração apenas no banco destinado ao desenvolvimento.
 
-Banco de Dados: PostgreSQL
+## Verificação e migrations
 
-Versionamento & Governança: Git / GitHub (Git Flow + Conventional Commits)
+```powershell
+npm run db:validate
+npm run typecheck
+npm run build
+npm start
+```
 
-🔐 Perfis do Sistema
+O build gera o client antes de compilar. O código gerado fica em `src/generated/prisma`, fora do Git. Validar o schema, gerar o client e compilar não exige credenciais; aplicar migrations e executar o seed exige as URLs configuradas.
 
-Aluno: Registra relatórios e horas das atividades de estágio.
+Para futuras mudanças no schema:
 
-Professora (Preceptora): Revisa, aprova ou devolve os registros para correção.
+```powershell
+npm run db:migrate -- --name describe_change --create-only
+```
 
-Coordenação: Acompanha o saldo de horas das turmas em relação à carga exigida e extrai relatórios.
+Revise o SQL antes de aplicar. Novas tabelas também precisam de RLS habilitado na migration. `migrate dev` pode exigir um shadow database separado; nunca use o próprio banco da aplicação como shadow database. Não aceite reset de um banco com dados que precisam ser preservados.
 
-🚀 Como Executar o Projeto Localmente
+## Segurança de instalação
 
-(Instruções detalhadas serão adicionadas conforme o avanço das branches de setup e banco de dados).
+O `.npmrc` bloqueia scripts automáticos de instalação. Os scripts explícitos de `npm run` continuam disponíveis. Não remova esse bloqueio para aprovar todos os pacotes de uma vez. Se uma dependência exigir um script, revise o arquivo e aprove apenas o pacote necessário.
 
-# Clonar o repositório
-git clone https://github.com/SEU-USUARIO/NOME-DO-REPOSITORIO.git
+As versões do Prisma CLI, client e adapter estão fixadas em 7.10.1; o lockfile fixa a árvore de dependências. Não atualize para uma versão candidata do Prisma 8. A árvore desta etapa não inclui `workerd`.
 
-# Entrar na pasta do projeto
-cd NOME-DO-REPOSITORIO
+## Banco e autorização
 
-# Instalar as dependências
-npm install
+As tabelas `instituicao`, `usuario` e `turma` possuem RLS habilitado, sem políticas de acesso pela Data API. Isso bloqueia o acesso dessas tabelas pelos papéis comuns da API automática do Supabase. O usuário proprietário do banco e papéis com `BYPASSRLS` podem contornar RLS: portanto, a API Express ainda precisará validar autenticação e autorização em todas as operações de negócio.
 
+O campo `senha_hash` é reservado ao hash de senha, nunca à senha em texto puro. A normalização do e-mail e a validação dos dados de entrada serão implementadas junto com a autenticação.
 
-📋 Roadmap do MVP
+Consulte [a explicação do banco](docs/database.md) para entender as decisões desta etapa.
 
-[x] Definição de escopo e modelo de dados
+## Próximas etapas
 
-[ ] Setup do projeto (chore/project-setup)
+- Autenticação e autorização por perfil.
+- Disciplinas, campos e registros de estágio.
+- Aprovação em lote, histórico de correções e fechamento.
+- Painel da coordenação e relatórios.
+- Testes automatizados, CI e documentação OpenAPI.
+- Avaliação e controle de faltas na fase 2.
 
-[ ] Schema do banco de dados e migrations (feat/database-schema)
+## Licença
 
-[ ] Autenticação e Autorização JWT (feat/auth)
-
-[ ] Módulo de Registro de Estágio (feat/registro-estagio)
-
-[ ] Módulo de Validação e Auditoria (feat/aprovacao)
-
-[ ] Painel e Relatórios da Coordenação (feat/painel-coordenacao)
-
-[ ] Integração Contínua (ci/github-actions)
-
-📄 Licença
-
-Este projeto é um MVP proprietário em fase de desenvolvimento.
+Projeto proprietário, em desenvolvimento. Não há licença de uso ou redistribuição concedida neste repositório.
