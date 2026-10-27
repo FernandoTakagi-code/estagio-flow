@@ -5,7 +5,7 @@ A API cria uma ficha automaticamente no primeiro registro de um vínculo de est�
 ## Permissões e fluxo
 
 - Aluno: cria registros somente no próprio vínculo ativo; consulta suas fichas, registros e histórico; edita, envia ou cancela rascunhos e registros devolvidos.
-- Professora: consulta as fichas dos grupos sob sua responsabilidade e seus registros enviados ou devolvidos; devolve registros enviados com motivo obrigatório. Rascunhos e cancelados ficam fora da consulta da professora.
+- Professora: consulta as fichas dos grupos sob sua responsabilidade e seus registros enviados, devolvidos ou aprovados; devolve registros enviados com motivo obrigatório e pode aprovar ou reabrir conforme o [fluxo de aprovação](approvals.md). Rascunhos e cancelados ficam fora da consulta da professora.
 - Coordenação: consulta fichas, registros e histórico da instituição, sem preencher ou devolver registros em nome dos outros perfis.
 
 O fluxo é `rascunho → enviado → devolvido → enviado`. Editar um registro devolvido mantém esse estado até o novo envio. Um registro enviado fica bloqueado para edição e cancelamento. O cancelamento de um rascunho ou devolvido é definitivo: preserva o conteúdo e o histórico, mas libera o horário para outro registro.
@@ -78,4 +78,4 @@ Verificações adicionais: tente criar outro registro no mesmo horário (409), a
 
 ## Ainda pendente
 
-Aprovação individual/em lote, snapshots de aprovação, reabertura de aprovado, fechamento definitivo com RT/COREN, totais aprovados para a carga horária e relatórios. O envio desta etapa apenas coloca o registro à disposição da professora; ainda não valida horas cumpridas. A ficha não limita a cinco registros: esse limite pertence ao futuro lote de aprovação, que aceitará de um a cinco itens.
+Fechamento definitivo com RT/COREN e relatórios continuam pendentes. Aprovação de um a cinco registros, snapshots, reabertura e totais aprovados estão disponíveis no [fluxo de aprovação](approvals.md). O envio apenas coloca o registro à disposição da professora; as horas contam como cumpridas após aprovação vigente. A ficha não limita a cinco registros: esse limite pertence ao lote de aprovação.
