@@ -11,6 +11,7 @@ import { requireAuth, requireCoordinator } from './auth/middleware.js';
 import { loginSchema, acceptInviteSchema, createUserSchema, userIdSchema, activeSchema, listSchema } from './auth/schemas.js';
 import { authenticate, acceptInvite, createUser, reissueInvite, setUserActive, publicUserSelect, type Actor } from './auth/service.js';
 import { previewImport, confirmImport } from './imports/service.js';
+import { createAcademicRouter } from './academico/routes.js';
 
 export function createApp() {
   const tokens = createTokenService(process.env.JWT_SECRET);
@@ -99,6 +100,8 @@ export function createApp() {
     const usuario = await setUserActive(res.locals.actor as Actor, id, ativo);
     res.json({ usuario });
   });
+
+  app.use('/academico', auth, (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); }, createAcademicRouter());
 
   app.use((_req, res) => { res.status(404).json({ erro: 'Rota não encontrada.' }); });
   const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, _next) => {
