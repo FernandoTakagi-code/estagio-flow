@@ -14,7 +14,7 @@ erDiagram
 - `Turma`: código único dentro de uma instituição. O mesmo código pode existir em instituições diferentes.
 - `ImportacaoAlunos`: guarda temporariamente os nomes e e-mails de uma prévia validada, junto com a instituição, coordenação criadora, quantidade e validade de 30 minutos. A confirmação cria os alunos e convites em uma transação e apaga os dados pessoais da prévia, preservando os metadados. A tabela tem RLS sem políticas e um CHECK SQL que limita a quantidade de 1 a 100. Veja [importação de alunos](student-import.md) para limpeza de dados expirados e regras de confirmação.
 
-Não colocamos `turmaId` em todo usuário: professoras e coordenação não pertencem a uma única turma como um aluno. A matrícula e os vínculos das professoras serão modelados nas próximas etapas.
+Não colocamos `turmaId` em todo usuário: professoras e coordenação não pertencem a uma única turma como um aluno. O histórico de turmas fica em `MatriculaTurma`. `Disciplina` define a carga horária, `CampoEstagio` representa o local, `Estagio` representa um grupo com professora e `VinculoEstagio` registra a participação do aluno. Consulte [cadastros acadêmicos](academic.md) para as restrições e rotas.
 
 ## Como ler o schema
 
