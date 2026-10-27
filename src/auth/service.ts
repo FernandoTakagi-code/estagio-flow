@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { prisma } from '../lib/prisma.js';
 import { hashPassword, verifyPassword } from '../lib/password.js';
 import { HttpError } from '../lib/errors.js';
@@ -27,13 +27,21 @@ export async function authenticate(email: string, password: string) {
   return { user: publicUser, tokenVersao };
 }
 
-async function addInvite(tx: Prisma.TransactionClient, usuarioId: string, criadoPorId: string) {
+export function prepareInvite(usuarioId: string, criadoPorId: string) {
   const token = randomBytes(32).toString('hex');
   const expiraEm = new Date(Date.now() + 48 * 60 * 60 * 1000);
+  return {
+    data: { id: randomUUID(), usuarioId, criadoPorId, tokenHash: digest(token), expiraEm },
+    publico: { token, expiraEm },
+  };
+}
+
+async function addInvite(tx: Prisma.TransactionClient, usuarioId: string, criadoPorId: string) {
+  const convite = prepareInvite(usuarioId, criadoPorId);
   await tx.conviteUsuario.create({
-    data: { usuarioId, criadoPorId, tokenHash: digest(token), expiraEm },
+    data: convite.data,
   });
-  return { token, expiraEm };
+  return convite.publico;
 }
 
 export async function createUser(actor: Actor, data: z.infer<typeof createUserSchema>) {

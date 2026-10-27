@@ -16,37 +16,56 @@ enum Perfil {
 }
 
 model Instituicao {
-  id           String    @id @default(uuid()) @db.Uuid
-  nome         String    @db.VarChar(200)
-  criadoEm     DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
-  atualizadoEm DateTime  @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  id           String             @id @default(uuid()) @db.Uuid
+  nome         String             @db.VarChar(200)
+  criadoEm     DateTime           @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm DateTime           @updatedAt @map("atualizado_em") @db.Timestamptz(3)
   usuarios     Usuario[]
   turmas       Turma[]
+  importacoes  ImportacaoAlunos[]
 
   @@map("instituicao")
 }
 
 model Usuario {
-  id              String           @id @default(uuid()) @db.Uuid
-  instituicaoId   String           @map("instituicao_id") @db.Uuid
-  nome            String           @db.VarChar(200)
-  email           String           @unique @db.VarChar(254)
-  senhaHash       String?          @map("senha_hash") @db.Text
-  perfil          Perfil
-  coren           String?          @db.VarChar(30)
-  ativo           Boolean          @default(true)
-  tokenVersao     Int              @default(0) @map("token_versao")
-  criadoPorId     String?          @map("criado_por_id") @db.Uuid
-  criadoEm        DateTime         @default(now()) @map("criado_em") @db.Timestamptz(3)
-  atualizadoEm    DateTime         @updatedAt @map("atualizado_em") @db.Timestamptz(3)
-  instituicao     Instituicao      @relation(fields: [instituicaoId], references: [id], onDelete: Restrict)
-  criadoPor       Usuario?         @relation("CriadorUsuario", fields: [criadoPorId], references: [id], onDelete: Restrict)
-  usuariosCriados Usuario[]        @relation("CriadorUsuario")
-  convites        ConviteUsuario[] @relation("DestinatarioConvite")
-  convitesCriados ConviteUsuario[] @relation("CriadorConvite")
+  id                 String             @id @default(uuid()) @db.Uuid
+  instituicaoId      String             @map("instituicao_id") @db.Uuid
+  nome               String             @db.VarChar(200)
+  email              String             @unique @db.VarChar(254)
+  senhaHash          String?            @map("senha_hash") @db.Text
+  perfil             Perfil
+  coren              String?            @db.VarChar(30)
+  ativo              Boolean            @default(true)
+  tokenVersao        Int                @default(0) @map("token_versao")
+  criadoPorId        String?            @map("criado_por_id") @db.Uuid
+  criadoEm           DateTime           @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm       DateTime           @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  instituicao        Instituicao        @relation(fields: [instituicaoId], references: [id], onDelete: Restrict)
+  criadoPor          Usuario?           @relation("CriadorUsuario", fields: [criadoPorId], references: [id], onDelete: Restrict)
+  usuariosCriados    Usuario[]          @relation("CriadorUsuario")
+  convites           ConviteUsuario[]   @relation("DestinatarioConvite")
+  convitesCriados    ConviteUsuario[]   @relation("CriadorConvite")
+  importacoesCriadas ImportacaoAlunos[]
 
   @@index([instituicaoId])
   @@map("usuario")
+}
+
+model ImportacaoAlunos {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @map("instituicao_id") @db.Uuid
+  criadoPorId   String      @map("criado_por_id") @db.Uuid
+  dados         Json?
+  quantidade    Int
+  expiraEm      DateTime    @map("expira_em") @db.Timestamptz(3)
+  confirmadaEm  DateTime?   @map("confirmada_em") @db.Timestamptz(3)
+  criadoEm      DateTime    @default(now()) @map("criado_em") @db.Timestamptz(3)
+  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id], onDelete: Restrict)
+  criadoPor     Usuario     @relation(fields: [criadoPorId], references: [id], onDelete: Restrict)
+
+  @@index([instituicaoId, criadoPorId])
+  @@index([expiraEm])
+  @@map("importacao_alunos")
 }
 
 model ConviteUsuario {
