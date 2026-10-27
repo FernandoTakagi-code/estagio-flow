@@ -5,3 +5,4 @@ dist
 !.env.example
 src/generated/prisma/
 certs/
+dados-locais/

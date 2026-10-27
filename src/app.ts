@@ -2,7 +2,7 @@ import express, { type ErrorRequestHandler } from 'express';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { createHash } from 'node:crypto';
-import { ZodError } from 'zod';
+import { ZodError, z } from 'zod';
 import { prisma } from './lib/prisma.js';
 import { Prisma } from './generated/prisma/client.js';
 import { HttpError } from './lib/errors.js';
@@ -10,6 +10,7 @@ import { createTokenService, tokenDurationSeconds } from './auth/token.js';
 import { requireAuth, requireCoordinator } from './auth/middleware.js';
 import { loginSchema, acceptInviteSchema, createUserSchema, userIdSchema, activeSchema, listSchema } from './auth/schemas.js';
 import { authenticate, acceptInvite, createUser, reissueInvite, setUserActive, publicUserSelect, type Actor } from './auth/service.js';
+import { previewImport, confirmImport } from './imports/service.js';
 
 export function createApp() {
   const tokens = createTokenService(process.env.JWT_SECRET);
@@ -56,6 +57,22 @@ export function createApp() {
 
   app.use('/usuarios', auth, requireCoordinator, (_req, res, next) => {
     res.setHeader('Cache-Control', 'no-store'); next();
+  });
+  const importLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, limit: 20,
+    standardHeaders: 'draft-8', legacyHeaders: false, message: limitMessage,
+    keyGenerator: (_req, res) => (res.locals.actor as Actor).id,
+  });
+  app.post('/usuarios/importacoes/previa', importLimiter, express.text({ type: 'text/csv', limit: '64kb' }), async (req, res) => {
+    if (!req.is('text/csv')) throw new HttpError(415, 'Envie o CSV com Content-Type text/csv.');
+    const result = await previewImport(res.locals.actor as Actor, req.body);
+    res.json(result);
+  });
+  app.post('/usuarios/importacoes/:id/confirmar', importLimiter, async (req, res) => {
+    const id = userIdSchema.parse(req.params.id);
+    z.strictObject({ confirmar: z.literal(true) }).parse(req.body);
+    const result = await confirmImport(res.locals.actor as Actor, id);
+    res.status(201).json(result);
   });
   app.post('/usuarios', async (req, res) => {
     const input = createUserSchema.parse(req.body);
