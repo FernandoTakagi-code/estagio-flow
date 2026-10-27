@@ -36,7 +36,7 @@ npm run dev
 
 `GET http://localhost:3000/health` retorna `{"status":"ok"}`. Esse endpoint verifica o processo HTTP; não consulta o banco.
 
-O seed cria uma instituição de demonstração e uma turma fictícia. Pode ser repetido sem duplicá-las e não cria contas ou senhas. Disciplinas serão incluídas quando seu modelo existir. Execute dados de demonstração apenas no banco destinado ao desenvolvimento.
+O seed cria uma instituição de demonstração, uma turma fictícia e dez disciplinas, totalizando 600 horas. Pode ser repetido sem duplicá-las e não cria contas ou senhas. Execute dados de demonstração apenas no banco destinado ao desenvolvimento.
 
 Para criar a primeira conta da coordenação, execute `npm run admin:create` em um terminal interativo. O comando pede nome, e-mail, ID da instituição e senha com confirmação e digitação oculta. Na instituição fictícia do seed, o ID é `00000000-0000-4000-8000-000000000001`.
 
@@ -45,6 +45,10 @@ Veja [autenticação e cadastro de usuários](docs/authentication.md) para os en
 ## Importar alunos
 
 A coordenação pode enviar um CSV com nome e e-mail, revisar erros e confirmar a criação das contas e convites. Consulte [importação por CSV](docs/student-import.md) e o [exemplo fictício](examples/alunos.csv). Vínculos com turmas e envio automático de e-mail serão adicionados depois.
+
+## Cadastros acadêmicos
+
+A coordenação pode cadastrar turmas, disciplinas e locais, matricular alunos e organizar grupos com professora responsável. Transferências preservam o histórico. A professora consulta seus grupos e o aluno consulta somente seus próprios vínculos. Consulte [cadastros e vínculos](docs/academic.md) para as rotas e decisões.
 
 ## Verificação e migrations
 
@@ -76,7 +80,7 @@ As versões do Prisma CLI, client e adapter estão fixadas em 7.10.1; o lockfile
 
 ## Banco e autorização
 
-As tabelas `instituicao`, `usuario`, `turma`, `convite_usuario` e `importacao_alunos` possuem RLS habilitado, sem políticas de acesso pela Data API. Isso bloqueia o acesso dessas tabelas pelos papéis comuns da API automática do Supabase. O usuário proprietário do banco e papéis com `BYPASSRLS` podem contornar RLS: portanto, a API Express verifica autenticação e autorização nas rotas de usuários. Novas rotas de negócio também precisam dessas verificações.
+As tabelas `instituicao`, `usuario`, `turma`, `convite_usuario`, `importacao_alunos`, `disciplina`, `campo_estagio`, `matricula_turma`, `estagio` e `vinculo_estagio` possuem RLS habilitado, sem políticas de acesso pela Data API. Isso bloqueia o acesso dessas tabelas pelos papéis comuns da API automática do Supabase. O usuário proprietário do banco e papéis com `BYPASSRLS` podem contornar RLS: portanto, a API Express verifica autenticação e autorização nas rotas de usuários. Novas rotas de negócio também precisam dessas verificações.
 
 O campo `senha_hash` é reservado ao hash scrypt, nunca à senha em texto puro. É nulo enquanto a conta aguarda um convite. E-mails são normalizados antes de gravar e há uma restrição SQL contra e-mails não normalizados. Senhas, hashes e tokens de convites não aparecem na listagem de usuários.
 
@@ -86,7 +90,7 @@ Consulte [a explicação do banco](docs/database.md) para entender as decisões 
 
 - Importação de alunos por CSV com prévia e confirmação.
 - Integração de envio de convites por e-mail e recuperação de senha.
-- Disciplinas, campos e registros de estágio.
+- Fichas e registros de estágio.
 - Aprovação em lote, histórico de correções e fechamento.
 - Painel da coordenação e relatórios.
 - Testes automatizados, CI e documentação OpenAPI.
