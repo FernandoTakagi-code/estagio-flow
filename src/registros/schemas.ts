@@ -12,5 +12,9 @@ export const returnRecordSchema = versionSchema.extend({ motivo: z.string().trim
 export const recordQuerySchema = z.strictObject({
   pagina: z.coerce.number().int().min(1).max(100000).default(1),
   fichaId: z.uuid().optional(),
-  status: z.enum(['rascunho', 'enviado', 'devolvido', 'cancelado']).optional(),
+  status: z.enum(['rascunho', 'enviado', 'devolvido', 'cancelado', 'aprovado']).optional(),
+});
+export const approveBatchSchema = z.strictObject({
+  registros: z.array(z.strictObject({ id: z.uuid(), versao: z.number().int().positive() })).min(1).max(5)
+    .refine((items) => new Set(items.map((item) => item.id)).size === items.length, 'Não repita um registro no lote.'),
 });

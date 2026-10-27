@@ -3,11 +3,27 @@ import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../lib/errors.js';
 import type { Actor } from '../auth/service.js';
 import { userIdSchema, listSchema } from '../auth/schemas.js';
-import { createRecordSchema, editRecordSchema, versionSchema, returnRecordSchema, recordQuerySchema } from './schemas.js';
+import { createRecordSchema, editRecordSchema, versionSchema, returnRecordSchema, recordQuerySchema, approveBatchSchema } from './schemas.js';
 import { createRecord, changeRecord, recordScope, sheetScope, presentRecord } from './service.js';
+import { approveRecords, reopenRecord, listApprovals, studentHours } from './approval-service.js';
 
 export function createRecordsRouter() {
   const router = Router();
+  router.post('/registros/aprovar', async (req, res) => {
+    res.json(await approveRecords(res.locals.actor as Actor, approveBatchSchema.parse(req.body)));
+  });
+  router.post('/registros/:id/reabrir', async (req, res) => {
+    const { versao, motivo } = returnRecordSchema.parse(req.body);
+    res.json(await reopenRecord(res.locals.actor as Actor, userIdSchema.parse(req.params.id), versao, motivo));
+  });
+  router.get('/registros/:id/aprovacoes', async (req, res) => {
+    const { pagina } = listSchema.parse(req.query);
+    res.json(await listApprovals(res.locals.actor as Actor, userIdSchema.parse(req.params.id), pagina));
+  });
+  router.get('/alunos/:id/horas', async (req, res) => {
+    const { pagina } = listSchema.parse(req.query);
+    res.json(await studentHours(res.locals.actor as Actor, userIdSchema.parse(req.params.id), pagina));
+  });
   router.get('/fichas', async (req, res) => {
     const { pagina } = listSchema.parse(req.query);
     const fichas = await prisma.fichaEstagio.findMany({ where: sheetScope(res.locals.actor as Actor),

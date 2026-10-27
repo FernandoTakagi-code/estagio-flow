@@ -54,6 +54,8 @@ model Usuario {
   estagiosCriados     Estagio[]          @relation("CriadorEstagio")
   vinculosCriados     VinculoEstagio[]   @relation("CriadorVinculo")
   eventosRegistro    EventoRegistro[]
+  aprovacoesRegistro AprovacaoRegistro[]
+  reaberturasRegistro ReaberturaAprovacao[]
 
   @@unique([id, instituicaoId])
   @@index([instituicaoId])
@@ -212,6 +214,7 @@ enum StatusRegistro {
   enviado
   devolvido
   cancelado
+  aprovado
 
   @@map("status_registro")
 }
@@ -247,6 +250,7 @@ model RegistroEstagio {
   atualizadoEm    DateTime        @updatedAt @map("atualizado_em") @db.Timestamptz(3)
   ficha           FichaEstagio    @relation(fields: [fichaId, instituicaoId, alunoId], references: [id, instituicaoId, alunoId], onDelete: Restrict)
   eventos         EventoRegistro[]
+  aprovacoes      AprovacaoRegistro[]
 
   @@unique([id, instituicaoId])
   @@index([alunoId, data])
@@ -270,4 +274,37 @@ model EventoRegistro {
   @@unique([registroId, versao])
   @@index([instituicaoId, autorId])
   @@map("evento_registro")
+}
+
+model AprovacaoRegistro {
+  id            String               @id @default(uuid()) @db.Uuid
+  instituicaoId String               @map("instituicao_id") @db.Uuid
+  registroId    String               @map("registro_id") @db.Uuid
+  professoraId  String               @map("professora_id") @db.Uuid
+  versao        Int
+  snapshot      Json
+  criadoEm      DateTime             @default(now()) @map("criado_em") @db.Timestamptz(3)
+  registro      RegistroEstagio      @relation(fields: [registroId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  professora    Usuario              @relation(fields: [professoraId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  reabertura    ReaberturaAprovacao?
+
+  @@unique([id, instituicaoId])
+  @@unique([registroId, versao])
+  @@index([instituicaoId, professoraId])
+  @@map("aprovacao_registro")
+}
+
+model ReaberturaAprovacao {
+  id            String            @id @default(uuid()) @db.Uuid
+  instituicaoId String            @map("instituicao_id") @db.Uuid
+  aprovacaoId   String            @unique @map("aprovacao_id") @db.Uuid
+  professoraId  String            @map("professora_id") @db.Uuid
+  motivo        String            @db.VarChar(1000)
+  criadoEm      DateTime          @default(now()) @map("criado_em") @db.Timestamptz(3)
+  aprovacao     AprovacaoRegistro  @relation(fields: [aprovacaoId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  professora    Usuario           @relation(fields: [professoraId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+
+  @@unique([aprovacaoId, instituicaoId])
+  @@index([instituicaoId, professoraId])
+  @@map("reabertura_aprovacao")
 }
