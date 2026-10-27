@@ -52,7 +52,9 @@ A coordenação pode cadastrar turmas, disciplinas e locais, matricular alunos e
 
 ## Frequência de estágio
 
-O aluno registra datas, horários e atividades na ficha do próprio vínculo. A API calcula a duração, impede horários sobrepostos e controla rascunho, envio, devolução com motivo e cancelamento. Cada alteração preserva um histórico. Consulte [registros e teste manual](docs/attendance.md). Aprovação e fechamento definitivo serão adicionados na próxima etapa.
+O aluno registra datas, horários e atividades na ficha do próprio vínculo. A API calcula a duração, impede horários sobrepostos e controla rascunho, envio, devolução com motivo e cancelamento. Cada alteração preserva um histórico. Consulte [registros e teste manual](docs/attendance.md).
+
+A professora aprova de um a cinco registros da mesma ficha por vez e pode reabrir um aprovado com motivo, preservando sua aprovação anterior. A API soma as horas aprovadas por aluno e disciplina, incluindo vínculos históricos. Consulte [aprovação, reabertura e totais](docs/approvals.md). Fechamento definitivo e relatórios continuam pendentes; o próximo bloco planejado é o frontend.
 
 ## Verificação e migrations
 
@@ -84,7 +86,7 @@ As versões do Prisma CLI, client e adapter estão fixadas em 7.10.1; o lockfile
 
 ## Banco e autorização
 
-As tabelas de negócio, incluindo `ficha_estagio`, `registro_estagio` e `evento_registro`, possuem RLS habilitado, sem políticas de acesso pela Data API. Isso bloqueia o acesso dessas tabelas pelos papéis comuns da API automática do Supabase. O usuário proprietário do banco e papéis com `BYPASSRLS` podem contornar RLS: portanto, a API Express verifica autenticação e autorização nas rotas. Novas rotas de negócio também precisam dessas verificações.
+As tabelas de negócio, incluindo `ficha_estagio`, `registro_estagio`, `evento_registro`, `aprovacao_registro` e `reabertura_aprovacao`, possuem RLS habilitado, sem políticas de acesso pela Data API. Isso bloqueia o acesso dessas tabelas pelos papéis comuns da API automática do Supabase. O usuário proprietário do banco e papéis com `BYPASSRLS` podem contornar RLS: portanto, a API Express verifica autenticação e autorização nas rotas. Novas rotas de negócio também precisam dessas verificações.
 
 O campo `senha_hash` é reservado ao hash scrypt, nunca à senha em texto puro. É nulo enquanto a conta aguarda um convite. E-mails são normalizados antes de gravar e há uma restrição SQL contra e-mails não normalizados. Senhas, hashes e tokens de convites não aparecem na listagem de usuários.
 
@@ -93,7 +95,8 @@ Consulte [a explicação do banco](docs/database.md) para entender as decisões 
 ## Próximas etapas
 
 - Integração de envio de convites por e-mail e recuperação de senha.
-- Aprovação em lote, histórico de correções e fechamento.
+- Frontend de login, registros e aprovação, seguido das telas da coordenação.
+- Fechamento definitivo das fichas com RT/COREN.
 - Painel da coordenação e relatórios.
 - Ampliação dos testes, CI e documentação OpenAPI.
 - Avaliação e controle de faltas na fase 2.

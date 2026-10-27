@@ -26,11 +26,11 @@ export function sheetScope(actor: Actor): Prisma.FichaEstagioWhereInput {
 export function recordScope(actor: Actor): Prisma.RegistroEstagioWhereInput {
   return {
     instituicaoId: actor.instituicaoId, ficha: sheetScope(actor),
-    ...(actor.perfil === 'professora' ? { status: { in: ['enviado', 'devolvido'] } } : {}),
+    ...(actor.perfil === 'professora' ? { status: { in: ['enviado', 'devolvido', 'aprovado'] } } : {}),
   };
 }
 
-async function lockContext(tx: Tx, actor: Actor, vinculoId: string, creating = false) {
+export async function lockContext(tx: Tx, actor: Actor, vinculoId: string, creating = false) {
   const ref = await tx.vinculoEstagio.findFirst({ where: { id: vinculoId, instituicaoId: actor.instituicaoId } });
   if (!ref || (actor.perfil === 'aluno' && ref.alunoId !== actor.id)) throw new HttpError(404, 'Vínculo não encontrado.');
   // Use the same lock order as enrollment transfers: student, group, then link.
@@ -64,7 +64,7 @@ function recordData(input: { data: string; horaInicio: string; horaFim: string; 
   return { data: new Date(`${input.data}T00:00:00.000Z`), inicioMinuto, fimMinuto, duracaoMinutos: fimMinuto - inicioMinuto, atividades: input.atividades };
 }
 
-async function event(tx: Tx, actor: Actor, record: RegistroEstagio, acao: string, motivo?: string) {
+export async function recordEvent(tx: Tx, actor: Actor, record: RegistroEstagio, acao: string, motivo?: string) {
   await tx.eventoRegistro.create({ data: {
     instituicaoId: actor.instituicaoId, autorId: actor.id, registroId: record.id,
     versao: record.versao, acao, motivo,
@@ -81,7 +81,7 @@ export async function createRecord(actor: Actor, input: z.infer<typeof createRec
     await checkOverlap(tx, actor.id, data.data, data.inicioMinuto, data.fimMinuto);
     const ficha = await tx.fichaEstagio.upsert({ where: { vinculoId: link.id }, update: {}, create: { vinculoId: link.id, instituicaoId: actor.instituicaoId, alunoId: actor.id } });
     const record = await tx.registroEstagio.create({ data: { ...data, fichaId: ficha.id, alunoId: actor.id, instituicaoId: actor.instituicaoId } });
-    await event(tx, actor, record, 'criado');
+    await recordEvent(tx, actor, record, 'criado');
     return presentRecord(record);
   });
 }
@@ -101,7 +101,7 @@ export async function changeRecord(actor: Actor, id: string, versao: number, act
     const record = await tx.registroEstagio.update({ where: { id }, data: {
       ...data, versao: { increment: 1 }, status: action === 'enviar' ? 'enviado' : action === 'devolver' ? 'devolvido' : action === 'cancelar' ? 'cancelado' : current.status,
     } });
-    await event(tx, actor, record, action === 'editar' ? 'editado' : action === 'enviar' ? 'enviado' : action === 'cancelar' ? 'cancelado' : 'devolvido', motivo);
+    await recordEvent(tx, actor, record, action === 'editar' ? 'editado' : action === 'enviar' ? 'enviado' : action === 'cancelar' ? 'cancelado' : 'devolvido', motivo);
     return presentRecord(record);
   });
 }
