@@ -16,37 +16,45 @@ enum Perfil {
 }
 
 model Instituicao {
-  id           String             @id @default(uuid()) @db.Uuid
-  nome         String             @db.VarChar(200)
-  criadoEm     DateTime           @default(now()) @map("criado_em") @db.Timestamptz(3)
-  atualizadoEm DateTime           @updatedAt @map("atualizado_em") @db.Timestamptz(3)
-  usuarios     Usuario[]
-  turmas       Turma[]
-  importacoes  ImportacaoAlunos[]
+  id            String             @id @default(uuid()) @db.Uuid
+  nome          String             @db.VarChar(200)
+  criadoEm      DateTime           @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm  DateTime           @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  usuarios      Usuario[]
+  turmas        Turma[]
+  importacoes   ImportacaoAlunos[]
+  disciplinas   Disciplina[]
+  camposEstagio CampoEstagio[]
 
   @@map("instituicao")
 }
 
 model Usuario {
-  id                 String             @id @default(uuid()) @db.Uuid
-  instituicaoId      String             @map("instituicao_id") @db.Uuid
-  nome               String             @db.VarChar(200)
-  email              String             @unique @db.VarChar(254)
-  senhaHash          String?            @map("senha_hash") @db.Text
-  perfil             Perfil
-  coren              String?            @db.VarChar(30)
-  ativo              Boolean            @default(true)
-  tokenVersao        Int                @default(0) @map("token_versao")
-  criadoPorId        String?            @map("criado_por_id") @db.Uuid
-  criadoEm           DateTime           @default(now()) @map("criado_em") @db.Timestamptz(3)
-  atualizadoEm       DateTime           @updatedAt @map("atualizado_em") @db.Timestamptz(3)
-  instituicao        Instituicao        @relation(fields: [instituicaoId], references: [id], onDelete: Restrict)
-  criadoPor          Usuario?           @relation("CriadorUsuario", fields: [criadoPorId], references: [id], onDelete: Restrict)
-  usuariosCriados    Usuario[]          @relation("CriadorUsuario")
-  convites           ConviteUsuario[]   @relation("DestinatarioConvite")
-  convitesCriados    ConviteUsuario[]   @relation("CriadorConvite")
-  importacoesCriadas ImportacaoAlunos[]
+  id                  String             @id @default(uuid()) @db.Uuid
+  instituicaoId       String             @map("instituicao_id") @db.Uuid
+  nome                String             @db.VarChar(200)
+  email               String             @unique @db.VarChar(254)
+  senhaHash           String?            @map("senha_hash") @db.Text
+  perfil              Perfil
+  coren               String?            @db.VarChar(30)
+  ativo               Boolean            @default(true)
+  tokenVersao         Int                @default(0) @map("token_versao")
+  criadoPorId         String?            @map("criado_por_id") @db.Uuid
+  criadoEm            DateTime           @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm        DateTime           @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  instituicao         Instituicao        @relation(fields: [instituicaoId], references: [id], onDelete: Restrict)
+  criadoPor           Usuario?           @relation("CriadorUsuario", fields: [criadoPorId], references: [id], onDelete: Restrict)
+  usuariosCriados     Usuario[]          @relation("CriadorUsuario")
+  convites            ConviteUsuario[]   @relation("DestinatarioConvite")
+  convitesCriados     ConviteUsuario[]   @relation("CriadorConvite")
+  importacoesCriadas  ImportacaoAlunos[]
+  matriculas          MatriculaTurma[]   @relation("AlunoMatricula")
+  matriculasCriadas   MatriculaTurma[]   @relation("CriadorMatricula")
+  estagiosResponsavel Estagio[]          @relation("ProfessoraEstagio")
+  estagiosCriados     Estagio[]          @relation("CriadorEstagio")
+  vinculosCriados     VinculoEstagio[]   @relation("CriadorVinculo")
 
+  @@unique([id, instituicaoId])
   @@index([instituicaoId])
   @@map("usuario")
 }
@@ -86,13 +94,112 @@ model ConviteUsuario {
 }
 
 model Turma {
-  id            String      @id @default(uuid()) @db.Uuid
-  instituicaoId String      @map("instituicao_id") @db.Uuid
-  codigo        String      @db.VarChar(50)
-  criadoEm      DateTime    @default(now()) @map("criado_em") @db.Timestamptz(3)
-  atualizadoEm  DateTime    @updatedAt @map("atualizado_em") @db.Timestamptz(3)
-  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id], onDelete: Restrict)
+  id            String           @id @default(uuid()) @db.Uuid
+  instituicaoId String           @map("instituicao_id") @db.Uuid
+  codigo        String           @db.VarChar(50)
+  criadoEm      DateTime         @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm  DateTime         @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  instituicao   Instituicao      @relation(fields: [instituicaoId], references: [id], onDelete: Restrict)
+  matriculas    MatriculaTurma[]
+  estagios      Estagio[]
 
+  @@unique([id, instituicaoId])
   @@unique([instituicaoId, codigo])
   @@map("turma")
+}
+
+model Disciplina {
+  id                String      @id @default(uuid()) @db.Uuid
+  instituicaoId     String      @map("instituicao_id") @db.Uuid
+  codigo            String      @db.VarChar(50)
+  nome              String      @db.VarChar(200)
+  cargaHorariaTotal Int         @map("carga_horaria_total")
+  criadoEm          DateTime    @default(now()) @map("criado_em") @db.Timestamptz(3)
+  instituicao       Instituicao @relation(fields: [instituicaoId], references: [id], onDelete: Restrict)
+  estagios          Estagio[]
+
+  @@unique([instituicaoId, codigo])
+  @@unique([id, instituicaoId])
+  @@map("disciplina")
+}
+
+model CampoEstagio {
+  id            String      @id @default(uuid()) @db.Uuid
+  instituicaoId String      @map("instituicao_id") @db.Uuid
+  nome          String      @db.VarChar(200)
+  criadoEm      DateTime    @default(now()) @map("criado_em") @db.Timestamptz(3)
+  instituicao   Instituicao @relation(fields: [instituicaoId], references: [id], onDelete: Restrict)
+  estagios      Estagio[]
+
+  @@unique([instituicaoId, nome])
+  @@unique([id, instituicaoId])
+  @@map("campo_estagio")
+}
+
+model MatriculaTurma {
+  id            String           @id @default(uuid()) @db.Uuid
+  instituicaoId String           @map("instituicao_id") @db.Uuid
+  turmaId       String           @map("turma_id") @db.Uuid
+  alunoId       String           @map("aluno_id") @db.Uuid
+  criadoPorId   String           @map("criado_por_id") @db.Uuid
+  iniciadoEm    DateTime         @default(now()) @map("iniciado_em") @db.Timestamptz(3)
+  encerradoEm   DateTime?        @map("encerrado_em") @db.Timestamptz(3)
+  turma         Turma            @relation(fields: [turmaId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  aluno         Usuario          @relation("AlunoMatricula", fields: [alunoId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  criadoPor     Usuario          @relation("CriadorMatricula", fields: [criadoPorId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  vinculos      VinculoEstagio[]
+
+  @@unique([id, instituicaoId, turmaId, alunoId])
+  @@index([instituicaoId, turmaId])
+  @@index([alunoId])
+  @@map("matricula_turma")
+}
+
+model Estagio {
+  id             String           @id @default(uuid()) @db.Uuid
+  instituicaoId  String           @map("instituicao_id") @db.Uuid
+  codigo         String           @db.VarChar(50)
+  turmaId        String           @map("turma_id") @db.Uuid
+  disciplinaId   String           @map("disciplina_id") @db.Uuid
+  campoEstagioId String           @map("campo_estagio_id") @db.Uuid
+  professoraId   String           @map("professora_id") @db.Uuid
+  criadoPorId    String           @map("criado_por_id") @db.Uuid
+  criadoEm       DateTime         @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm   DateTime         @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  encerradoEm    DateTime?        @map("encerrado_em") @db.Timestamptz(3)
+  turma          Turma            @relation(fields: [turmaId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  disciplina     Disciplina       @relation(fields: [disciplinaId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  campoEstagio   CampoEstagio     @relation(fields: [campoEstagioId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  professora     Usuario          @relation("ProfessoraEstagio", fields: [professoraId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  criadoPor      Usuario          @relation("CriadorEstagio", fields: [criadoPorId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  vinculos       VinculoEstagio[]
+
+  @@unique([instituicaoId, codigo])
+  @@unique([id, instituicaoId, turmaId, disciplinaId])
+  @@index([instituicaoId, professoraId])
+  @@index([turmaId])
+  @@index([disciplinaId])
+  @@index([campoEstagioId])
+  @@map("estagio")
+}
+
+model VinculoEstagio {
+  id            String         @id @default(uuid()) @db.Uuid
+  instituicaoId String         @map("instituicao_id") @db.Uuid
+  estagioId     String         @map("estagio_id") @db.Uuid
+  matriculaId   String         @map("matricula_id") @db.Uuid
+  turmaId       String         @map("turma_id") @db.Uuid
+  disciplinaId  String         @map("disciplina_id") @db.Uuid
+  alunoId       String         @map("aluno_id") @db.Uuid
+  criadoPorId   String         @map("criado_por_id") @db.Uuid
+  iniciadoEm    DateTime       @default(now()) @map("iniciado_em") @db.Timestamptz(3)
+  encerradoEm   DateTime?      @map("encerrado_em") @db.Timestamptz(3)
+  estagio       Estagio        @relation(fields: [estagioId, instituicaoId, turmaId, disciplinaId], references: [id, instituicaoId, turmaId, disciplinaId], onDelete: Restrict)
+  matricula     MatriculaTurma @relation(fields: [matriculaId, instituicaoId, turmaId, alunoId], references: [id, instituicaoId, turmaId, alunoId], onDelete: Restrict)
+  criadoPor     Usuario        @relation("CriadorVinculo", fields: [criadoPorId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+
+  @@index([instituicaoId, estagioId])
+  @@index([alunoId, disciplinaId])
+  @@index([matriculaId])
+  @@map("vinculo_estagio")
 }
