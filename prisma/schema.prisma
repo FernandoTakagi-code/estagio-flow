@@ -53,6 +53,7 @@ model Usuario {
   estagiosResponsavel Estagio[]          @relation("ProfessoraEstagio")
   estagiosCriados     Estagio[]          @relation("CriadorEstagio")
   vinculosCriados     VinculoEstagio[]   @relation("CriadorVinculo")
+  eventosRegistro    EventoRegistro[]
 
   @@unique([id, instituicaoId])
   @@index([instituicaoId])
@@ -197,9 +198,76 @@ model VinculoEstagio {
   estagio       Estagio        @relation(fields: [estagioId, instituicaoId, turmaId, disciplinaId], references: [id, instituicaoId, turmaId, disciplinaId], onDelete: Restrict)
   matricula     MatriculaTurma @relation(fields: [matriculaId, instituicaoId, turmaId, alunoId], references: [id, instituicaoId, turmaId, alunoId], onDelete: Restrict)
   criadoPor     Usuario        @relation("CriadorVinculo", fields: [criadoPorId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  ficha         FichaEstagio?
 
+  @@unique([id, instituicaoId, alunoId])
   @@index([instituicaoId, estagioId])
   @@index([alunoId, disciplinaId])
   @@index([matriculaId])
   @@map("vinculo_estagio")
+}
+
+enum StatusRegistro {
+  rascunho
+  enviado
+  devolvido
+  cancelado
+
+  @@map("status_registro")
+}
+
+model FichaEstagio {
+  id            String          @id @default(uuid()) @db.Uuid
+  instituicaoId String          @map("instituicao_id") @db.Uuid
+  alunoId       String          @map("aluno_id") @db.Uuid
+  vinculoId     String          @unique @map("vinculo_id") @db.Uuid
+  criadoEm      DateTime        @default(now()) @map("criado_em") @db.Timestamptz(3)
+  vinculo       VinculoEstagio  @relation(fields: [vinculoId, instituicaoId, alunoId], references: [id, instituicaoId, alunoId], onDelete: Restrict)
+  registros     RegistroEstagio[]
+
+  @@unique([id, instituicaoId, alunoId])
+  @@unique([vinculoId, instituicaoId, alunoId])
+  @@index([instituicaoId, alunoId])
+  @@map("ficha_estagio")
+}
+
+model RegistroEstagio {
+  id              String          @id @default(uuid()) @db.Uuid
+  instituicaoId   String          @map("instituicao_id") @db.Uuid
+  alunoId         String          @map("aluno_id") @db.Uuid
+  fichaId         String          @map("ficha_id") @db.Uuid
+  data            DateTime        @db.Date
+  inicioMinuto    Int             @map("inicio_minuto")
+  fimMinuto       Int             @map("fim_minuto")
+  duracaoMinutos  Int             @map("duracao_minutos")
+  atividades      String          @db.VarChar(4000)
+  status          StatusRegistro  @default(rascunho)
+  versao          Int             @default(1)
+  criadoEm        DateTime        @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm    DateTime        @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+  ficha           FichaEstagio    @relation(fields: [fichaId, instituicaoId, alunoId], references: [id, instituicaoId, alunoId], onDelete: Restrict)
+  eventos         EventoRegistro[]
+
+  @@unique([id, instituicaoId])
+  @@index([alunoId, data])
+  @@index([fichaId, status])
+  @@map("registro_estagio")
+}
+
+model EventoRegistro {
+  id            String          @id @default(uuid()) @db.Uuid
+  instituicaoId String          @map("instituicao_id") @db.Uuid
+  registroId    String          @map("registro_id") @db.Uuid
+  autorId       String          @map("autor_id") @db.Uuid
+  acao          String          @db.VarChar(20)
+  versao        Int
+  motivo        String?         @db.VarChar(1000)
+  snapshot      Json
+  criadoEm      DateTime        @default(now()) @map("criado_em") @db.Timestamptz(3)
+  registro      RegistroEstagio @relation(fields: [registroId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  autor         Usuario         @relation(fields: [autorId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+
+  @@unique([registroId, versao])
+  @@index([instituicaoId, autorId])
+  @@map("evento_registro")
 }
