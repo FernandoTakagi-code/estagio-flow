@@ -42,6 +42,10 @@ Para criar a primeira conta da coordenação, execute `npm run admin:create` em 
 
 Veja [autenticação e cadastro de usuários](docs/authentication.md) para os endpoints, exemplos de teste e limitações desta versão.
 
+## Importar alunos
+
+A coordenação pode enviar um CSV com nome e e-mail, revisar erros e confirmar a criação das contas e convites. Consulte [importação por CSV](docs/student-import.md) e o [exemplo fictício](examples/alunos.csv). Vínculos com turmas e envio automático de e-mail serão adicionados depois.
+
 ## Verificação e migrations
 
 ```powershell
@@ -72,7 +76,7 @@ As versões do Prisma CLI, client e adapter estão fixadas em 7.10.1; o lockfile
 
 ## Banco e autorização
 
-As tabelas `instituicao`, `usuario`, `turma` e `convite_usuario` possuem RLS habilitado, sem políticas de acesso pela Data API. Isso bloqueia o acesso dessas tabelas pelos papéis comuns da API automática do Supabase. O usuário proprietário do banco e papéis com `BYPASSRLS` podem contornar RLS: portanto, a API Express verifica autenticação e autorização nas rotas de usuários. Novas rotas de negócio também precisam dessas verificações.
+As tabelas `instituicao`, `usuario`, `turma`, `convite_usuario` e `importacao_alunos` possuem RLS habilitado, sem políticas de acesso pela Data API. Isso bloqueia o acesso dessas tabelas pelos papéis comuns da API automática do Supabase. O usuário proprietário do banco e papéis com `BYPASSRLS` podem contornar RLS: portanto, a API Express verifica autenticação e autorização nas rotas de usuários. Novas rotas de negócio também precisam dessas verificações.
 
 O campo `senha_hash` é reservado ao hash scrypt, nunca à senha em texto puro. É nulo enquanto a conta aguarda um convite. E-mails são normalizados antes de gravar e há uma restrição SQL contra e-mails não normalizados. Senhas, hashes e tokens de convites não aparecem na listagem de usuários.
 

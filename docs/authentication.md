@@ -88,7 +88,7 @@ O último comando HTTP mostra os dados públicos da conta; a senha não aparece 
 ## Limitações e próximas etapas
 
 - Ainda não há envio automático de e-mail, recuperação de senha, MFA, refresh token ou frontend. Ao expirar o token, faça login novamente. Isso precisa ser resolvido conforme os requisitos antes de produção.
-- O cadastro individual será a base da importação de alunos por CSV com prévia, validação e confirmação. A importação não poderá conceder perfil de professora ou coordenação.
+- A [importação de alunos por CSV](student-import.md) usa prévia, validação e confirmação, sempre com perfil de aluno.
 - `criadoPorId` e os convites registram quem iniciou o cadastro. Ainda não há uma trilha completa de auditoria de todas as alterações de acesso.
 - Ainda não existem rotas de estágio: a regra de professora acessar somente seus alunos será aplicada ao implementar os vínculos de estágio, além do controle de perfil atual.
 - O comando administrativo exige terminal interativo e uma instituição existente. Não há senha padrão nem conta de coordenação no seed. O comando não altera a senha de contas existentes.
