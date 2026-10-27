@@ -44,11 +44,15 @@ Veja [autenticação e cadastro de usuários](docs/authentication.md) para os en
 
 ## Importar alunos
 
-A coordenação pode enviar um CSV com nome e e-mail, revisar erros e confirmar a criação das contas e convites. Consulte [importação por CSV](docs/student-import.md) e o [exemplo fictício](examples/alunos.csv). Vínculos com turmas e envio automático de e-mail serão adicionados depois.
+A coordenação pode enviar um CSV com nome e e-mail, revisar erros e confirmar a criação das contas e convites. Consulte [importação por CSV](docs/student-import.md) e o [exemplo fictício](examples/alunos.csv). A matrícula em turma é feita pelas rotas acadêmicas; o envio automático de e-mail ainda está pendente.
 
 ## Cadastros acadêmicos
 
 A coordenação pode cadastrar turmas, disciplinas e locais, matricular alunos e organizar grupos com professora responsável. Transferências preservam o histórico. A professora consulta seus grupos e o aluno consulta somente seus próprios vínculos. Consulte [cadastros e vínculos](docs/academic.md) para as rotas e decisões.
+
+## Frequência de estágio
+
+O aluno registra datas, horários e atividades na ficha do próprio vínculo. A API calcula a duração, impede horários sobrepostos e controla rascunho, envio, devolução com motivo e cancelamento. Cada alteração preserva um histórico. Consulte [registros e teste manual](docs/attendance.md). Aprovação e fechamento definitivo serão adicionados na próxima etapa.
 
 ## Verificação e migrations
 
@@ -80,7 +84,7 @@ As versões do Prisma CLI, client e adapter estão fixadas em 7.10.1; o lockfile
 
 ## Banco e autorização
 
-As tabelas `instituicao`, `usuario`, `turma`, `convite_usuario`, `importacao_alunos`, `disciplina`, `campo_estagio`, `matricula_turma`, `estagio` e `vinculo_estagio` possuem RLS habilitado, sem políticas de acesso pela Data API. Isso bloqueia o acesso dessas tabelas pelos papéis comuns da API automática do Supabase. O usuário proprietário do banco e papéis com `BYPASSRLS` podem contornar RLS: portanto, a API Express verifica autenticação e autorização nas rotas de usuários. Novas rotas de negócio também precisam dessas verificações.
+As tabelas de negócio, incluindo `ficha_estagio`, `registro_estagio` e `evento_registro`, possuem RLS habilitado, sem políticas de acesso pela Data API. Isso bloqueia o acesso dessas tabelas pelos papéis comuns da API automática do Supabase. O usuário proprietário do banco e papéis com `BYPASSRLS` podem contornar RLS: portanto, a API Express verifica autenticação e autorização nas rotas. Novas rotas de negócio também precisam dessas verificações.
 
 O campo `senha_hash` é reservado ao hash scrypt, nunca à senha em texto puro. É nulo enquanto a conta aguarda um convite. E-mails são normalizados antes de gravar e há uma restrição SQL contra e-mails não normalizados. Senhas, hashes e tokens de convites não aparecem na listagem de usuários.
 
@@ -88,12 +92,10 @@ Consulte [a explicação do banco](docs/database.md) para entender as decisões 
 
 ## Próximas etapas
 
-- Importação de alunos por CSV com prévia e confirmação.
 - Integração de envio de convites por e-mail e recuperação de senha.
-- Fichas e registros de estágio.
 - Aprovação em lote, histórico de correções e fechamento.
 - Painel da coordenação e relatórios.
-- Testes automatizados, CI e documentação OpenAPI.
+- Ampliação dos testes, CI e documentação OpenAPI.
 - Avaliação e controle de faltas na fase 2.
 
 ## Licença
