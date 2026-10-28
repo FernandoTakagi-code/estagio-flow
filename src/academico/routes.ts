@@ -9,6 +9,16 @@ import { setStudentClass, closeStudentClass, createStage, assignStudent, closeSt
 
 export function createAcademicRouter() {
   const router = Router();
+  router.get('/matriculas', requireCoordinator, async (req, res) => {
+    const actor = res.locals.actor as Actor;
+    const { pagina } = listSchema.parse(req.query);
+    const matriculas = await prisma.matriculaTurma.findMany({
+      where: { instituicaoId: actor.instituicaoId, encerradoEm: null },
+      select: { id: true, alunoId: true, turmaId: true, iniciadoEm: true, turma: { select: { id: true, codigo: true } } },
+      orderBy: [{ iniciadoEm: 'desc' }, { id: 'asc' }], take: 50, skip: (pagina - 1) * 50,
+    });
+    res.json({ matriculas, pagina, porPagina: 50 });
+  });
   router.get('/meus-vinculos', async (req, res) => {
     const actor = res.locals.actor as Actor;
     if (actor.perfil !== 'aluno') throw new HttpError(403, 'Consulta disponível somente para alunos.');

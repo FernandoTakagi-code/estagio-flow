@@ -99,7 +99,7 @@ A interface React fica em `web/`, com login, convite, registros do aluno e revis
 ## Próximas etapas
 
 - Integração de envio de convites por e-mail e recuperação de senha.
-- Telas de gestão acadêmica e importação para a coordenação.
+- Envio automático de convites e melhorias para gestão de grandes turmas.
 - Fechamento definitivo das fichas com RT/COREN.
 - Painel da coordenação e relatórios.
 - Ampliação dos testes, CI e documentação OpenAPI.

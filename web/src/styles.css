@@ -88,7 +88,7 @@ h3 { font-size: 19px; font-weight: 600; letter-spacing: -.45px; line-height: 1.4
 .disciplines > .muted { padding-top: 30px; }
 .records-region { min-width: 0; }
 .section-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.section-header .button { color: var(--primary); padding-inline: 4px; }
+.section-header .button-ghost { color: var(--primary); padding-inline: 4px; }
 .record-filters { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between; }
 .filter-tabs { display: flex; gap: 26px; flex-wrap: wrap; }
 .filter-tabs button { background: transparent; border: 0; padding: 0 0 11px; font-size: 14px; color: var(--muted); border-bottom: 2px solid transparent; }

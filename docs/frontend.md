@@ -24,7 +24,7 @@ npm run web:dev
 
 Abra http://127.0.0.1:5173. O proxy de desenvolvimento encaminha `/api` para `http://127.0.0.1:3000`. Se houver outra prévia ocupando a porta 5173, encerre-a com Ctrl+C antes. A configuração opcional `API_PROXY_TARGET`, em `web/.env.local`, deve apontar para a API desejada. Reinicie o Vite após mudar essa configuração.
 
-Use as contas já criadas pela coordenação. Uma conta de coordenação vê uma consulta de registros; a gestão acadêmica e importação continuam disponíveis pela API, e suas telas ficam para a próxima etapa.
+Use as contas já criadas pela coordenação. O perfil de coordenação abre a gestão de pessoas, cadastros acadêmicos, grupos e importações. Consulte [o guia da coordenação](coordination.md) para testar o ciclo completo.
 
 ## Prévia fictícia isolada
 
@@ -50,6 +50,7 @@ Para voltar à API real, encerre o Vite, execute `Remove-Item Env:API_PROXY_TARG
 - Aluno: acompanhar horas e disciplinas, consultar fichas, criar rascunho, enviar, corrigir devoluções e cancelar rascunhos ou devoluções. Alterações precisam ser salvas antes do envio.
 - Professora: filtrar registros e fichas, aprovar de um a cinco registros da mesma ficha, devolver e reabrir com motivo. O histórico e as aprovações anteriores permanecem consultáveis.
 - Login: mensagens de erro, mostrar senha, aceitar convite e expiração da sessão. A recuperação de senha ainda depende de integração futura.
+- Coordenação: cadastrar pessoas e emitir convites, matricular e transferir alunos, organizar turmas, disciplinas, locais e grupos, encerrar vínculos e importar alunos com prévia do CSV.
 - Celular: navegação, lista de registros e formulários adaptados, com suporte a teclado e redução de movimento.
 
 As rotas novas de leitura são `GET /academico/meus-vinculos` e `GET /frequencia/painel`. As listagens de fichas e registros incluem os dados necessários para mostrar aluno, disciplina e motivo de devolução. As restrições de instituição, aluno e professora continuam no servidor. Só aprovações da versão atual e sem reabertura contam para as horas aprovadas.

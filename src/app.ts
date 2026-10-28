@@ -85,10 +85,10 @@ export function createApp() {
     const { pagina } = listSchema.parse(req.query);
     const actor = res.locals.actor as Actor;
     const usuarios = await prisma.usuario.findMany({
-      where: { instituicaoId: actor.instituicaoId }, select: publicUserSelect,
+      where: { instituicaoId: actor.instituicaoId }, select: { ...publicUserSelect, senhaHash: true },
       orderBy: [{ criadoEm: 'asc' }, { id: 'asc' }], skip: (pagina - 1) * 50, take: 50,
     });
-    res.json({ usuarios, pagina, porPagina: 50 });
+    res.json({ usuarios: usuarios.map(({ senhaHash, ...usuario }) => ({ ...usuario, convitePendente: senhaHash === null })), pagina, porPagina: 50 });
   });
   app.post('/usuarios/:id/convite', async (req, res) => {
     const id = userIdSchema.parse(req.params.id);

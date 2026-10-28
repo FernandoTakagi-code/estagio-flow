@@ -137,6 +137,24 @@ describe('cadastros acadêmicos', () => {
 });
 
 describe('matrículas e grupos de estágio', () => {
+  it('lista matrículas ativas da instituição somente para a coordenação', async () => {
+    await enroll();
+    await enroll(student.id, class2Id);
+    const other = await context.prisma.instituicao.create({ data: { nome: 'Outra Escola Fictícia' } });
+    const otherClass = await context.prisma.turma.create({ data: { instituicaoId: other.id, codigo: 'OUTRA' } });
+    const otherStudent = await context.prisma.usuario.create({ data: { instituicaoId: other.id, perfil: 'aluno', nome: 'Outro aluno', email: 'matricula-externa@example.test' } });
+    const otherCoordinator = await context.prisma.usuario.create({ data: { instituicaoId: other.id, perfil: 'coordenacao', nome: 'Outra coordenação', email: 'coord-externa@example.test' } });
+    await context.prisma.matriculaTurma.create({ data: { instituicaoId: other.id, alunoId: otherStudent.id, turmaId: otherClass.id, criadoPorId: otherCoordinator.id } });
+    const response = await get('/matriculas');
+    expect(response.status).toBe(200);
+    expect(response.body.matriculas).toHaveLength(1);
+    expect(response.body.matriculas[0]).toMatchObject({ alunoId: student.id, turmaId: class2Id, turma: { codigo: 'ENF-02' } });
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect((await get('/matriculas?pagina=2')).body.matriculas).toEqual([]);
+    expect((await get('/matriculas?pagina=0')).status).toBe(400);
+    for (const bearer of [studentToken, teacherToken]) expect((await get('/matriculas', bearer)).status).toBe(403);
+    expect((await request(app).get('/academico/matriculas')).status).toBe(401);
+  });
   it('mantém uma turma ativa e preserva o histórico das transferências', async () => {
     expect((await enroll()).status).toBe(201);
     expect((await enroll()).status).toBe(200);

@@ -11,7 +11,7 @@ import { NewRecord } from './components/new-record';
 import { RecordDetail } from './components/record-detail';
 
 type View = 'overview' | 'records' | 'sheets';
-export function Dashboard({ user, onLogout }: { user: User; onLogout: () => Promise<void> }) {
+export function Dashboard({ user, onLogout, onBack }: { user: User; onLogout: () => Promise<void>; onBack?: () => void }) {
   const student = user.perfil === 'aluno';
   const teacher = user.perfil === 'professora';
   const [view, setView] = useState<View>('overview');
@@ -78,6 +78,7 @@ export function Dashboard({ user, onLogout }: { user: User; onLogout: () => Prom
   }
   const tabs: (Status | '')[] = ['', 'enviado', 'devolvido', 'aprovado', ...(student || user.perfil === 'coordenacao' ? ['rascunho', 'cancelado'] as Status[] : [])];
   return <div className="app-shell">
+    {onBack && <div className="coord-back content-width"><Button variant="ghost" onClick={onBack}><ChevronLeft size={16} />Voltar à coordenação</Button></div>}
     <a href="#workspace" className="skip-link">Ir para o conteúdo</a>
     <section className={`hero ${view !== 'overview' ? 'hero-compact' : ''}`}>
       <header className="site-header content-width"><Brand /><nav aria-label="Navegação principal">{([['overview', 'Visão geral'], ['records', student ? 'Meus registros' : 'Registros'], ['sheets', student ? 'Minhas fichas' : 'Grupos e fichas']] as const).map(([key, label]) => <button key={key} aria-current={view === key ? 'page' : undefined} onClick={() => navigate(key)}>{label}</button>)}</nav><div className="header-user"><span className="avatar" title={user.nome}>{initials}</span><Button variant="ghost" size="icon" aria-label="Sair" onClick={async () => { try { await onLogout(); } catch { /* Local session is cleared even if revocation cannot reach the API. */ } }}><LogOut size={19} /></Button></div></header>
