@@ -92,10 +92,14 @@ O campo `senha_hash` é reservado ao hash scrypt, nunca à senha em texto puro. 
 
 Consulte [a explicação do banco](docs/database.md) para entender as decisões desta etapa.
 
+## Interface web
+
+A interface React fica em `web/`, com login, convite, registros do aluno e revisão da professora. Consulte [o guia do frontend](docs/frontend.md) para executar, testar e entender a separação entre interface e API.
+
 ## Próximas etapas
 
 - Integração de envio de convites por e-mail e recuperação de senha.
-- Frontend de login, registros e aprovação, seguido das telas da coordenação.
+- Telas de gestão acadêmica e importação para a coordenação.
 - Fechamento definitivo das fichas com RT/COREN.
 - Painel da coordenação e relatórios.
 - Ampliação dos testes, CI e documentação OpenAPI.
