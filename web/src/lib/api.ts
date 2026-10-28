@@ -5,13 +5,13 @@ let token: string | null = null;
 let onExpired: (() => void) | undefined;
 export const setSession = (value: string | null, handler?: () => void) => { token = value; onExpired = handler; };
 
-export async function api<T>(path: string, options: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
+export async function api<T>(path: string, options: { method?: string; body?: unknown; csv?: string; signal?: AbortSignal } = {}): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`/api${path}`, {
       method: options.method ?? 'GET', signal: options.signal, cache: 'no-store', credentials: 'omit',
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
-      ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.csv !== undefined ? { 'Content-Type': 'text/csv; charset=utf-8' } : options.body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+      ...(options.csv !== undefined ? { body: options.csv } : options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;

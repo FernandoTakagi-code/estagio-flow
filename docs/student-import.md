@@ -24,7 +24,7 @@ A confirmação cria todos os alunos e convites em uma transação. Retorna 201 
 
 Se um e-mail passar a existir depois da prévia, retorna 409 e reverte todo o lote. Não importa parcialmente nem sobrescreve contas. Gere outra prévia. Uma prévia expirada retorna 410; uma já confirmada retorna 409. Confirmações simultâneas não duplicam contas.
 
-Se a conexão cair depois de a transação terminar, consulte a lista de usuários e reemita os convites pendentes necessários. Confirmar novamente não devolve os tokens anteriores. As respostas usam `Cache-Control: no-store`. Não publique tokens, registre-os em logs ou exporte-os para planilhas. O envio automático de e-mail e uma tela de importação ainda não estão integrados.
+Se a conexão cair depois de a transação terminar, consulte a lista de usuários e reemita os convites pendentes necessários. Confirmar novamente não devolve os tokens anteriores. As respostas usam `Cache-Control: no-store`. Não publique tokens, registre-os em logs ou exporte-os para planilhas. O envio automático de e-mail ainda não está integrado. A [tela de importação](coordination.md) permite selecionar o arquivo, conferir os erros por linha e confirmar a criação das contas; os links dos convites são apresentados na confirmação para compartilhar individualmente.
 
 ## Teste no PowerShell
 

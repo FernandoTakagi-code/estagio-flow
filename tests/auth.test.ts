@@ -115,6 +115,18 @@ describe('autenticação e autorização', () => {
 });
 
 describe('cadastro e convites', () => {
+  it('informa convite pendente sem expor o hash ou tokens na lista', async () => {
+    const created = await invite();
+    const list = () => request(app).get('/usuarios').auth(coordinatorToken, { type: 'bearer' });
+    const pending = await list();
+    expect(pending.status).toBe(200);
+    expect(pending.body.usuarios.find((row: { id: string }) => row.id === created.body.usuario.id).convitePendente).toBe(true);
+    expect(JSON.stringify(pending.body)).not.toContain('senhaHash');
+    expect(JSON.stringify(pending.body)).not.toContain(created.body.convite.token);
+    await accept(created.body.convite.token);
+    const activated = await list();
+    expect(activated.body.usuarios.find((row: { id: string }) => row.id === created.body.usuario.id).convitePendente).toBe(false);
+  });
   it('não oferece cadastro público', async () => {
     expect((await request(app).post('/usuarios').send({ nome: 'Aluno', email: 'aluno@example.test', perfil: 'aluno' })).status).toBe(401);
     expect((await request(app).post('/auth/register').send({})).status).toBe(404);

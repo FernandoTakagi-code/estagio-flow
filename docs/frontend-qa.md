@@ -26,4 +26,4 @@ O topo ficou um pouco mais baixo, conforme o ajuste aceito para mostrar mais reg
 
 Verificados no navegador: login, criação e envio, filtro, seleção e aprovação de dois registros, reabertura com motivo, aprovação histórica preservada, correção e reenvio. O envio fica desabilitado enquanto a edição não foi salva. Formulários foram conferidos no celular. Estados vazios e mensagens de erro têm texto visível.
 
-Sem divergências materiais pendentes na superfície verificada. A gestão acadêmica da coordenação, recuperação de senha por e-mail, avaliação e fechamento definitivo de fichas continuam fora desta etapa.
+Sem divergências materiais pendentes na superfície verificada. Esta revisão corresponde à primeira entrega de aluno e professora. A gestão acadêmica foi acrescentada depois, com revisão em [design da coordenação](coordination-design.md). Recuperação de senha por e-mail, avaliação e fechamento definitivo de fichas continuam para etapas futuras.
