@@ -6,3 +6,5 @@ dist
 src/generated/prisma/
 certs/
 dados-locais/
+web/public/branding/
+output/playwright/

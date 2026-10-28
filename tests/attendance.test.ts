@@ -236,6 +236,47 @@ async function submitted(overrides: Record<string, unknown> = {}) {
   return response.body.registro as typeof record;
 }
 const approve = (records: { id: string; versao: number }[], bearer = teacherToken) => post('/registros/aprovar', { registros: records.map(({ id, versao }) => ({ id, versao })) }, bearer);
+
+describe('consultas do painel', () => {
+  it('contabiliza os estados, restringe a visão por usuário e remove horas reabertas', async () => {
+    const approved = await submitted();
+    expect((await approve([approved])).status).toBe(200);
+    await submitted({ data: '2026-01-16' });
+    await create({ data: '2026-01-17' });
+    const panel = await get('/painel');
+    expect(panel.status).toBe(200);
+    expect(panel.body.cargaHorariaMinutos).toBe(5400);
+    expect(panel.body.registros).toEqual(expect.arrayContaining([
+      { status: 'aprovado', quantidade: 1, minutos: 270 },
+      { status: 'enviado', quantidade: 1, minutos: 270 },
+      { status: 'rascunho', quantidade: 1, minutos: 270 },
+    ]));
+    const teacher = await get('/painel', teacherToken);
+    expect(teacher.body.cargaHorariaMinutos).toBeNull();
+    expect(teacher.body.registros.map((row: { status: string }) => row.status).sort()).toEqual(['aprovado', 'enviado']);
+    for (const bearer of [otherStudentToken, otherTeacherToken]) {
+      expect((await get('/painel', bearer)).body.registros).toEqual([]);
+    }
+    expect((await post(`/registros/${approved.id}/reabrir`, { versao: 3, motivo: 'Conferir atividades.' }, teacherToken)).status).toBe(200);
+    const updated = await get('/painel');
+    expect(updated.body.registros).not.toEqual(expect.arrayContaining([expect.objectContaining({ status: 'aprovado' })]));
+    expect(updated.body.registros).toContainEqual({ status: 'devolvido', quantidade: 1, minutos: 270 });
+    const listed = await get('/registros');
+    expect(listed.body.registros.find((row: { id: string }) => row.id === approved.id).motivoDevolucao).toBe('Conferir atividades.');
+  });
+
+  it('inclui aluno e disciplina nas fichas sem expor fichas a terceiros', async () => {
+    await submitted();
+    const response = await get('/fichas', teacherToken);
+    expect(response.status).toBe(200);
+    expect(response.body.fichas[0].vinculo).toMatchObject({
+      matricula: { aluno: { id: studentId, nome: 'Pessoa Fictícia' } },
+      estagio: { id: stageId, disciplina: { nome: 'Disciplina Fictícia' }, campoEstagio: { nome: 'Hospital Fictício' }, turma: { codigo: 'TESTE' } },
+    });
+    for (const bearer of [otherStudentToken, otherTeacherToken]) expect((await get('/fichas', bearer)).body.fichas).toEqual([]);
+    expect(JSON.stringify(response.body)).not.toContain('senhaHash');
+  });
+});
 const hours = (bearer = studentToken) => get(`/alunos/${studentId}/horas`, bearer);
 
 describe('aprovação e totalização de horas', () => {

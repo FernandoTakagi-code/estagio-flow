@@ -5,6 +5,9 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "web:typecheck": "npm --prefix web run typecheck",
     "build": "prisma generate && tsc",
     "start": "node dist/server.js",
     "typecheck": "prisma generate && tsc --noEmit -p tsconfig.tools.json",

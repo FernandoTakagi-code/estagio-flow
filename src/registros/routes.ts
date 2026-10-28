@@ -9,6 +9,34 @@ import { approveRecords, reopenRecord, listApprovals, studentHours } from './app
 
 export function createRecordsRouter() {
   const router = Router();
+  router.get('/painel', async (_req, res) => {
+    const actor = res.locals.actor as Actor;
+    const painel = await prisma.$transaction(async (tx) => {
+      const groups = await tx.$queryRaw<{ status: string; quantidade: number; minutos: number }[]>`
+        SELECT r.status, COUNT(*)::double precision AS quantidade,
+          SUM(r.duracao_minutos)::double precision AS minutos
+        FROM registro_estagio r
+        JOIN ficha_estagio f ON f.id = r.ficha_id AND f.instituicao_id = r.instituicao_id
+        JOIN vinculo_estagio v ON v.id = f.vinculo_id AND v.instituicao_id = f.instituicao_id
+        JOIN estagio e ON e.id = v.estagio_id AND e.instituicao_id = v.instituicao_id
+        LEFT JOIN aprovacao_registro a ON a.registro_id = r.id AND a.instituicao_id = r.instituicao_id AND a.versao = r.versao
+        LEFT JOIN reabertura_aprovacao re ON re.aprovacao_id = a.id AND re.instituicao_id = a.instituicao_id
+        WHERE r.instituicao_id = ${actor.instituicaoId}::uuid
+          AND (${actor.perfil} <> 'aluno' OR r.aluno_id = ${actor.id}::uuid)
+          AND (${actor.perfil} <> 'professora' OR (e.professora_id = ${actor.id}::uuid AND r.status IN ('enviado', 'devolvido', 'aprovado')))
+          AND (r.status <> 'aprovado' OR (a.id IS NOT NULL AND re.id IS NULL))
+        GROUP BY r.status`;
+      const course = actor.perfil === 'aluno' ? await tx.disciplina.aggregate({
+        where: { instituicaoId: actor.instituicaoId, estagios: { some: { vinculos: { some: { alunoId: actor.id } } } } },
+        _sum: { cargaHorariaTotal: true },
+      }) : null;
+      return {
+        registros: groups,
+        cargaHorariaMinutos: course ? (course._sum.cargaHorariaTotal ?? 0) * 60 : null,
+      };
+    }, { isolationLevel: 'RepeatableRead' });
+    res.json(painel);
+  });
   router.post('/registros/aprovar', async (req, res) => {
     res.json(await approveRecords(res.locals.actor as Actor, approveBatchSchema.parse(req.body)));
   });
@@ -27,7 +55,10 @@ export function createRecordsRouter() {
   router.get('/fichas', async (req, res) => {
     const { pagina } = listSchema.parse(req.query);
     const fichas = await prisma.fichaEstagio.findMany({ where: sheetScope(res.locals.actor as Actor),
-      include: { vinculo: { select: { estagioId: true, iniciadoEm: true, encerradoEm: true } } },
+      include: { vinculo: { select: { estagioId: true, iniciadoEm: true, encerradoEm: true,
+        matricula: { select: { aluno: { select: { id: true, nome: true } } } },
+        estagio: { select: { id: true, codigo: true, disciplina: { select: { id: true, nome: true } }, campoEstagio: { select: { nome: true } }, turma: { select: { codigo: true } } } },
+      } } },
       orderBy: [{ criadoEm: 'desc' }, { id: 'asc' }], take: 50, skip: (pagina - 1) * 50 });
     res.json({ fichas, pagina, porPagina: 50 });
   });
@@ -39,9 +70,10 @@ export function createRecordsRouter() {
     const { pagina, fichaId, status } = recordQuerySchema.parse(req.query);
     const registros = await prisma.registroEstagio.findMany({
       where: { AND: [recordScope(res.locals.actor as Actor), { fichaId, status }] },
+      include: { eventos: { where: { acao: { in: ['devolvido', 'reaberto'] } }, select: { motivo: true }, orderBy: { versao: 'desc' }, take: 1 } },
       orderBy: [{ data: 'desc' }, { inicioMinuto: 'asc' }, { id: 'asc' }], take: 50, skip: (pagina - 1) * 50,
     });
-    res.json({ registros: registros.map(presentRecord), pagina, porPagina: 50 });
+    res.json({ registros: registros.map(({ eventos, ...record }) => ({ ...presentRecord(record), motivoDevolucao: record.status === 'devolvido' ? eventos[0]?.motivo ?? null : null })), pagina, porPagina: 50 });
   });
   router.get('/registros/:id', async (req, res) => {
     const registro = await prisma.registroEstagio.findFirst({ where: { ...recordScope(res.locals.actor as Actor), id: userIdSchema.parse(req.params.id) } });

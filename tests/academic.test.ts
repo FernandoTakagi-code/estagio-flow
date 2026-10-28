@@ -66,6 +66,24 @@ async function group(codigo = 'GRUPO-01', overrides: Record<string, string> = {}
 const assign = (id: string, alunoId = student.id) => request(app).post(`/academico/estagios/${id}/alunos`).auth(token, { type: 'bearer' }).send({ alunoId });
 const get = (path: string, bearer = token) => request(app).get('/academico' + path).auth(bearer, { type: 'bearer' });
 
+it('lista somente os vínculos do aluno autenticado com os dados necessários ao formulário', async () => {
+  await enroll();
+  const stageId = await group();
+  await assign(stageId);
+  const response = await get('/meus-vinculos', studentToken);
+  expect(response.status).toBe(200);
+  expect(response.body.vinculos).toHaveLength(1);
+  expect(response.body.vinculos[0].estagio).toMatchObject({
+    id: stageId, disciplina: { nome: 'Fundamentos Fictício', cargaHorariaTotal: 90 },
+    campoEstagio: { nome: 'Hospital Fictício' }, turma: { codigo: 'ENF-01' },
+  });
+  const otherToken = await createTokenService(process.env.JWT_SECRET).issue(student2.id, 0);
+  expect((await get('/meus-vinculos', otherToken)).body.vinculos).toEqual([]);
+  for (const bearer of [token, teacherToken]) expect((await get('/meus-vinculos', bearer)).status).toBe(403);
+  expect((await get('/meus-vinculos?pagina=2', studentToken)).body.vinculos).toEqual([]);
+  expect(JSON.stringify(response.body)).not.toContain('senhaHash');
+});
+
 describe('cadastros acadêmicos', () => {
   it('permite à coordenação criar e listar turmas, disciplinas e locais', async () => {
     const turma = await request(app).post('/academico/turmas').auth(token, { type: 'bearer' }).send({ codigo: ' enf-nova ' });
