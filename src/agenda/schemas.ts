@@ -1,0 +1,12 @@
+import { z } from 'zod';
+import { minutes } from '../registros/schemas.js';
+export const day = z.iso.date().refine((date) => date >= '2000-01-01' && date <= '2100-12-31', 'Data fora do intervalo permitido.');
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:mm.');
+const fields = { data: day, horaInicio: time, horaFim: time };
+const ordered = (value: { horaInicio: string; horaFim: string }) => minutes(value.horaFim) > minutes(value.horaInicio);
+export const createSchema = z.strictObject({ estagioId: z.uuid(), ...fields }).refine(ordered, 'A saída deve ser depois da entrada.');
+export const editSchema = z.strictObject({ ...fields, versao: z.number().int().positive(), motivo: z.string().trim().min(1).max(1000) }).refine(ordered, 'A saída deve ser depois da entrada.');
+export const cancelSchema = z.strictObject({ versao: z.number().int().positive(), motivo: z.string().trim().min(1).max(1000) });
+export const frequencySchema = z.strictObject({ vinculoId: z.uuid(), versao: z.number().int().min(0), situacao: z.enum(['presente', 'falta', 'justificada']), motivo: z.string().trim().max(1000).optional() }).refine((value) => value.situacao !== 'justificada' || Boolean(value.motivo), 'Informe o motivo da justificativa.');
+export const batchFrequencySchema = z.strictObject({ lancamentos: z.array(frequencySchema).min(1).max(100).refine((items) => new Set(items.map((item) => item.vinculoId)).size === items.length, 'Não repita o aluno na chamada.') });
+export const querySchema = z.object({ pagina: z.coerce.number().int().min(1).max(100000).default(1), de: day.optional(), ate: day.optional(), estagioId: z.uuid().optional() }).refine((value) => !value.de || !value.ate || value.de <= value.ate, 'O início deve ser anterior ao fim.');

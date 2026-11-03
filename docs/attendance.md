@@ -1,5 +1,7 @@
 # Fichas e registros de frequência
 
+Registros podem ser vinculados a uma sessão do [cronograma](schedule.md) por `sessaoId`. Nesse caso exigem presença confirmada pela professora e data/horários integrais da sessão. Havendo sessão ativa naquele intervalo, um registro avulso não pode ser usado para contornar a chamada. A aprovação e a reabertura mantêm o fluxo descrito abaixo.
+
 A API cria uma ficha automaticamente no primeiro registro de um vínculo de estágio. A ficha permanece ligada àquele vínculo, aluno, instituição e grupo, preservando o histórico após transferências. Esta etapa não oferece telas; os exemplos usam requisições HTTP.
 
 ## Permissões e fluxo

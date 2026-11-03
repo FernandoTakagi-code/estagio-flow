@@ -1,5 +1,6 @@
 import { transaction } from '../lib/transaction.js';
 import * as repository from './repository.js';
+import { validateRecordSession, validateUnscheduledRecord } from '../agenda/record-service.js';
 export { recordScope, sheetScope } from './access.js';
 import { HttpError } from '../lib/errors.js';
 import type { Actor } from '../auth/service.js';
@@ -58,10 +59,12 @@ export async function createRecord(actor: Actor, input: z.infer<typeof createRec
   return transaction(async (tx) => {
     const link = await lockContext(tx, actor, input.vinculoId, true);
     checkPeriod(input.data, link);
+    if (input.sessaoId) await validateRecordSession(tx, actor, input.sessaoId, link.id, input);
+    else await validateUnscheduledRecord(tx, link.estagioId, link.id, input);
     const data = recordData(input);
     await checkOverlap(tx, actor.id, data.data, data.inicioMinuto, data.fimMinuto);
     const ficha = await repository.ensureSheet(tx, link.id, actor.instituicaoId, actor.id);
-    const record = await repository.insertRecord(tx, { ...data, fichaId: ficha.id, alunoId: actor.id, instituicaoId: actor.instituicaoId });
+    const record = await repository.insertRecord(tx, { ...data, sessaoId: input.sessaoId, fichaId: ficha.id, alunoId: actor.id, instituicaoId: actor.instituicaoId });
     await recordEvent(tx, actor, record, 'criado');
     return presentRecord(record);
   });
@@ -77,6 +80,8 @@ export async function changeRecord(actor: Actor, id: string, versao: number, act
     if (current.versao !== versao) throw new HttpError(409, 'Registro alterado. Atualize a consulta antes de continuar.');
     if (action === 'devolver' ? current.status !== 'enviado' : !['rascunho', 'devolvido'].includes(current.status)) throw new HttpError(409, 'O estado atual não permite esta ação.');
     const data = input ? recordData(input) : undefined;
+    if (current.sessaoId && input) await validateRecordSession(tx, actor, current.sessaoId, link.id, input);
+    if (!current.sessaoId && input) await validateUnscheduledRecord(tx, link.estagioId, link.id, input);
     checkPeriod(input?.data ?? dateText(current.data), link);
     if (data) await checkOverlap(tx, current.alunoId, data.data, data.inicioMinuto, data.fimMinuto, id);
     const record = await repository.updateRecord(tx, id, {

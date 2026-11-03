@@ -56,6 +56,9 @@ model Usuario {
   eventosRegistro    EventoRegistro[]
   aprovacoesRegistro AprovacaoRegistro[]
   reaberturasRegistro ReaberturaAprovacao[]
+  sessoesCriadas AgendaSessao[]
+  frequenciasLancadas FrequenciaSessao[]
+  eventosAgenda EventoAgenda[]
 
   @@unique([id, instituicaoId])
   @@index([instituicaoId])
@@ -176,8 +179,10 @@ model Estagio {
   professora     Usuario          @relation("ProfessoraEstagio", fields: [professoraId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
   criadoPor      Usuario          @relation("CriadorEstagio", fields: [criadoPorId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
   vinculos       VinculoEstagio[]
+  sessoes        AgendaSessao[]
 
   @@unique([instituicaoId, codigo])
+  @@unique([id, instituicaoId])
   @@unique([id, instituicaoId, turmaId, disciplinaId])
   @@index([instituicaoId, professoraId])
   @@index([turmaId])
@@ -201,8 +206,11 @@ model VinculoEstagio {
   matricula     MatriculaTurma @relation(fields: [matriculaId, instituicaoId, turmaId, alunoId], references: [id, instituicaoId, turmaId, alunoId], onDelete: Restrict)
   criadoPor     Usuario        @relation("CriadorVinculo", fields: [criadoPorId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
   ficha         FichaEstagio?
+  frequencias   FrequenciaSessao[]
 
   @@unique([id, instituicaoId, alunoId])
+  @@unique([id, instituicaoId])
+  @@unique([id, instituicaoId, estagioId])
   @@index([instituicaoId, estagioId])
   @@index([alunoId, disciplinaId])
   @@index([matriculaId])
@@ -239,6 +247,7 @@ model RegistroEstagio {
   instituicaoId   String          @map("instituicao_id") @db.Uuid
   alunoId         String          @map("aluno_id") @db.Uuid
   fichaId         String          @map("ficha_id") @db.Uuid
+  sessaoId        String?         @map("sessao_id") @db.Uuid
   data            DateTime        @db.Date
   inicioMinuto    Int             @map("inicio_minuto")
   fimMinuto       Int             @map("fim_minuto")
@@ -249,6 +258,7 @@ model RegistroEstagio {
   criadoEm        DateTime        @default(now()) @map("criado_em") @db.Timestamptz(3)
   atualizadoEm    DateTime        @updatedAt @map("atualizado_em") @db.Timestamptz(3)
   ficha           FichaEstagio    @relation(fields: [fichaId, instituicaoId, alunoId], references: [id, instituicaoId, alunoId], onDelete: Restrict)
+  sessao          AgendaSessao?   @relation(fields: [sessaoId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
   eventos         EventoRegistro[]
   aprovacoes      AprovacaoRegistro[]
 
@@ -256,6 +266,60 @@ model RegistroEstagio {
   @@index([alunoId, data])
   @@index([fichaId, status])
   @@map("registro_estagio")
+}
+
+model AgendaSessao {
+  id String @id @default(uuid()) @db.Uuid
+  instituicaoId String @map("instituicao_id") @db.Uuid
+  estagioId String @map("estagio_id") @db.Uuid
+  data DateTime @db.Date
+  inicioMinuto Int @map("inicio_minuto")
+  fimMinuto Int @map("fim_minuto")
+  versao Int @default(1)
+  cancelada Boolean @default(false)
+  criadoPorId String @map("criado_por_id") @db.Uuid
+  criadoEm DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  estagio Estagio @relation(fields: [estagioId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  criadoPor Usuario @relation(fields: [criadoPorId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  frequencias FrequenciaSessao[] @relation("FrequenciaDaSessao")
+  registros RegistroEstagio[]
+  eventos EventoAgenda[]
+  @@unique([id, instituicaoId])
+  @@unique([id, instituicaoId, estagioId])
+  @@index([instituicaoId, data])
+  @@map("agenda_sessao")
+}
+
+model FrequenciaSessao {
+  id String @id @default(uuid()) @db.Uuid
+  instituicaoId String @map("instituicao_id") @db.Uuid
+  estagioId String @map("estagio_id") @db.Uuid
+  sessaoId String @map("sessao_id") @db.Uuid
+  vinculoId String @map("vinculo_id") @db.Uuid
+  situacao String @db.VarChar(20)
+  motivo String? @db.VarChar(1000)
+  versao Int @default(1)
+  professoraId String @map("professora_id") @db.Uuid
+  sessao AgendaSessao @relation("FrequenciaDaSessao", fields: [sessaoId, instituicaoId, estagioId], references: [id, instituicaoId, estagioId], onDelete: Restrict)
+  vinculo VinculoEstagio @relation(fields: [vinculoId, instituicaoId, estagioId], references: [id, instituicaoId, estagioId], onDelete: Restrict)
+  professora Usuario @relation(fields: [professoraId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  @@unique([id, instituicaoId])
+  @@unique([sessaoId, vinculoId])
+  @@map("frequencia_sessao")
+}
+
+model EventoAgenda {
+  id String @id @default(uuid()) @db.Uuid
+  instituicaoId String @map("instituicao_id") @db.Uuid
+  sessaoId String @map("sessao_id") @db.Uuid
+  autorId String @map("autor_id") @db.Uuid
+  acao String @db.VarChar(30)
+  snapshot Json
+  criadoEm DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  sessao AgendaSessao @relation(fields: [sessaoId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  autor Usuario @relation(fields: [autorId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
+  @@index([sessaoId, criadoEm])
+  @@map("evento_agenda")
 }
 
 model EventoRegistro {

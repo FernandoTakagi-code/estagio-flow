@@ -52,6 +52,7 @@ Para voltar à API real, encerre o Vite, execute `Remove-Item Env:API_PROXY_TARG
 - Professora: filtrar registros e fichas, aprovar de um a cinco registros da mesma ficha, devolver e reabrir com motivo. O histórico e as aprovações anteriores permanecem consultáveis.
 - Login: mensagens de erro, mostrar senha, aceitar convite e expiração da sessão. A recuperação de senha ainda depende de integração futura.
 - Coordenação: cadastrar pessoas e emitir convites, matricular e transferir alunos, organizar turmas, disciplinas, locais e grupos, encerrar vínculos e importar alunos com prévia do CSV.
+- Cronograma: coordenação e professora organizam sessões; a professora marca Presente/Falta na lista e salva a chamada de uma vez. O aluno registra as atividades após presença confirmada. Veja [cronograma e frequência](schedule.md).
 - Celular: navegação, lista de registros e formulários adaptados, com suporte a teclado e redução de movimento.
 
 As rotas novas de leitura são `GET /academico/meus-vinculos` e `GET /frequencia/painel`. As listagens de fichas e registros incluem os dados necessários para mostrar aluno, disciplina e motivo de devolução. As restrições de instituição, aluno e professora continuam no servidor. Só aprovações da versão atual e sem reabertura contam para as horas aprovadas.
@@ -81,4 +82,4 @@ Nesta instalação de um único curso, o catálogo de disciplinas da instituiç�
 
 O painel retorna `cargaHorariaMinutos` para todo o currículo e `cargaHorariaVinculosMinutos` para as disciplinas em que o aluno tem algum vínculo, inclusive histórico, contando cada disciplina uma vez. O campo `minutosAprovadosCurriculo` limita a contribuição de cada disciplina à carga exigida nela; `minutosRestantesCurriculo` soma as pendências por disciplina. As horas efetivamente aprovadas, incluindo excedentes, continuam preservadas nas consultas de disciplina e nos registros. Reabrir uma aprovação retira sua contribuição atual, sem excluir o histórico.
 
-Na prévia fictícia, `iniciante@example.test` usa a mesma senha de demonstração e possui apenas um vínculo em Fundamentos. Seu painel mostra 600h de currículo e 90h em disciplinas com vínculo. Cronograma, faltas e reposições continuam para a próxima entrega. A futura avaliação usará nove itens e média mínima 7,00, conforme confirmado; nenhuma avaliação foi implementada neste ajuste.
+Na prévia fictícia, `iniciante@example.test` usa a mesma senha de demonstração e possui apenas um vínculo em Fundamentos. Seu painel mostra 600h de currículo e 90h em disciplinas com vínculo. O cronograma possui sessões fictícias para testar presença e falta. A futura avaliação usará nove itens e média mínima 7,00, conforme confirmado; nenhuma avaliação foi implementada neste ajuste.

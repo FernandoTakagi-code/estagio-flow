@@ -9,9 +9,11 @@ import { ProgressRing } from './components/progress-ring';
 import { Records } from './components/records';
 import { NewRecord } from './components/new-record';
 import { RecordDetail } from './components/record-detail';
+import { Agenda } from './agenda';
+import type { SessionRecord } from './agenda/types';
 import { CourseProgress } from './components/course-progress';
 
-type View = 'overview' | 'records' | 'sheets' | 'course';
+type View = 'overview' | 'records' | 'sheets' | 'course' | 'agenda';
 export function Dashboard({ user, onLogout, onBack }: { user: User; onLogout: () => Promise<void>; onBack?: () => void }) {
   const student = user.perfil === 'aluno';
   const teacher = user.perfil === 'professora';
@@ -28,6 +30,7 @@ export function Dashboard({ user, onLogout, onBack }: { user: User; onLogout: ()
   const [revision, setRevision] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
   const [showNew, setShowNew] = useState(false);
+  const [recordSession, setRecordSession] = useState<SessionRecord | undefined>();
   const [detail, setDetail] = useState<RecordItem | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -78,11 +81,12 @@ export function Dashboard({ user, onLogout, onBack }: { user: User; onLogout: ()
     } catch (cause) { setError(errorMessage(cause)); refresh(); } finally { setBusy(false); }
   }
   const tabs: (Status | '')[] = ['', 'enviado', 'devolvido', 'aprovado', ...(student || user.perfil === 'coordenacao' ? ['rascunho', 'cancelado'] as Status[] : [])];
+  if (view === 'agenda') return <Agenda user={user} onBack={() => navigate('overview')} onRecord={(session) => { setRecordSession(session); navigate('overview'); setShowNew(true); }} />;
   return <div className="app-shell">
     {onBack && <div className="coord-back content-width"><Button variant="ghost" onClick={onBack}><ChevronLeft size={16} />Voltar à coordenação</Button></div>}
     <a href="#workspace" className="skip-link">Ir para o conteúdo</a>
     <section className={`hero ${view !== 'overview' ? 'hero-compact' : ''}`}>
-      <header className="site-header content-width"><Brand /><nav aria-label="Navegação principal">{([['overview', 'Visão geral'], ['records', student ? 'Meus registros' : 'Registros'], ['sheets', student ? 'Minhas fichas' : 'Grupos e fichas']] as const).map(([key, label]) => <button key={key} aria-current={view === key ? 'page' : undefined} onClick={() => navigate(key)}>{label}</button>)}</nav><div className="header-user"><span className="avatar" title={user.nome}>{initials}</span><Button variant="ghost" size="icon" aria-label="Sair" onClick={async () => { try { await onLogout(); } catch { /* Local session is cleared even if revocation cannot reach the API. */ } }}><LogOut size={19} /></Button></div></header>
+      <header className="site-header content-width"><Brand /><nav aria-label="Navegação principal">{([['overview', 'Visão geral'], ['agenda', 'Cronograma'], ['records', student ? 'Meus registros' : 'Registros'], ['sheets', student ? 'Minhas fichas' : 'Grupos e fichas']] as const).map(([key, label]) => <button key={key} aria-current={view === key ? 'page' : undefined} onClick={() => navigate(key)}>{label}</button>)}</nav><div className="header-user"><span className="avatar" title={user.nome}>{initials}</span><Button variant="ghost" size="icon" aria-label="Sair" onClick={async () => { try { await onLogout(); } catch { /* Local session is cleared even if revocation cannot reach the API. */ } }}><LogOut size={19} /></Button></div></header>
       <div className="hero-content content-width"><div className="hero-intro"><h1>{view === 'course' ? 'Carga horária' : view === 'records' ? student ? 'Meus registros' : 'Revisar registros' : view === 'sheets' ? student ? 'Minhas fichas' : 'Grupos e fichas' : student ? 'Meu estágio' : teacher ? 'Meus grupos' : 'Visão da coordenação'}</h1><p className="hero-date">{new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeZone: 'America/Sao_Paulo' }).format(new Date())}</p>
         <div className="hero-actions">{student ? <Button variant="light" onClick={() => setShowNew(true)} disabled={loading}><Plus size={21} />Novo registro</Button> : <Button variant="light" onClick={() => { setStatus('enviado'); setSheetFilter(''); navigate('records'); }}><CheckIcon />{teacher ? 'Revisar enviados' : 'Consultar registros'}</Button>}<Button variant="ghost" className="hero-secondary" onClick={() => navigate('sheets')}>{student ? 'Ver minha ficha' : 'Ver grupos'}<ArrowRight size={18} /></Button></div>
         {view === 'overview' && <div className="hero-metrics"><div><strong>{student ? hours(metric('enviado').minutos) : metric('enviado').quantidade}</strong><span>Aguardando aprovação</span></div><div><strong>{metric('devolvido').quantidade}<i /></strong><span>{metric('devolvido').quantidade === 1 ? 'Registro para corrigir' : 'Registros para corrigir'}</span></div></div>}
@@ -105,7 +109,7 @@ export function Dashboard({ user, onLogout, onBack }: { user: User; onLogout: ()
       </>}
     </main>
     <footer className="site-footer content-width"><span><strong>{user.nome}</strong> · {student ? 'Aluna(o) de Enfermagem' : teacher ? 'Professora' : 'Coordenação'}</span><span>Estágio Flow</span></footer>
-    {showNew && <NewRecord links={links} onClose={() => setShowNew(false)} onChanged={refresh} />}{detail && <RecordDetail key={detail.id} initial={detail} user={user} onClose={() => setDetail(null)} onChanged={refresh} />}
+    {showNew && <NewRecord session={recordSession} links={links} onClose={() => { setShowNew(false); setRecordSession(undefined); }} onChanged={refresh} />}{detail && <RecordDetail key={detail.id} initial={detail} user={user} onClose={() => setDetail(null)} onChanged={refresh} />}
   </div>;
 }
 function CheckIcon() { return <ArrowRight size={20} />; }
