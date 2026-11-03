@@ -20,6 +20,10 @@ for (const [index, [nome, cargaHorariaTotal]] of ([['Fundamentos de Enfermagem',
   const link = await db.vinculoEstagio.create({ data: { instituicaoId: institution.id, estagioId: stage.id, matriculaId: enrollment.id, turmaId: turma.id, disciplinaId: discipline.id, alunoId: student.id, criadoPorId: coordinator.id, iniciadoEm: new Date('2020-01-01T12:00:00Z') } });
   if (index === 0) firstLink = link.id;
 }
+const beginner = await db.usuario.create({ data: { instituicaoId: institution.id, nome: 'Bruno Exemplo', email: 'iniciante@example.test', perfil: 'aluno', senhaHash: saved.senhaHash } });
+const beginnerEnrollment = await db.matriculaTurma.create({ data: { instituicaoId: institution.id, turmaId: turma.id, alunoId: beginner.id, criadoPorId: coordinator.id, iniciadoEm: new Date('2020-01-01T12:00:00Z') } });
+const first = await db.vinculoEstagio.findUniqueOrThrow({ where: { id: firstLink } });
+await db.vinculoEstagio.create({ data: { instituicaoId: institution.id, estagioId: first.estagioId, matriculaId: beginnerEnrollment.id, turmaId: turma.id, disciplinaId: first.disciplinaId, alunoId: beginner.id, criadoPorId: coordinator.id, iniciadoEm: new Date('2020-01-01T12:00:00Z') } });
 const { createRecord, changeRecord } = await import('../../src/registros/service.js');
 const { approveRecords } = await import('../../src/registros/approval-service.js');
 for (const [data, atividades, status, horaFim] of [

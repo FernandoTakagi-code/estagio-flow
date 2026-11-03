@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 const codigo = z.string().trim().min(1).max(50).toUpperCase();
 const nome = z.string().trim().min(2).max(200);
+export const eligibleQuerySchema = z.object({ pagina: z.coerce.number().int().min(1).max(100000).default(1), busca: z.string().trim().max(100).default('') });
 
 export const turmaSchema = z.strictObject({ codigo });
 export const disciplinaSchema = z.strictObject({ codigo, nome, cargaHorariaTotal: z.number().int().min(1).max(10000) });

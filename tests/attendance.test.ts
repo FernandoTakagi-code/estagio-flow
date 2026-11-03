@@ -238,6 +238,36 @@ async function submitted(overrides: Record<string, unknown> = {}) {
 const approve = (records: { id: string; versao: number }[], bearer = teacherToken) => post('/registros/aprovar', { registros: records.map(({ id, versao }) => ({ id, versao })) }, bearer);
 
 describe('consultas do painel', () => {
+  it('inclui o currículo completo mesmo antes de vincular o aluno às outras disciplinas', async () => {
+    const extra = await context.prisma.disciplina.create({ data: { instituicaoId: institutionId, codigo: 'SEM-VINCULO', nome: 'Disciplina ainda não iniciada', cargaHorariaTotal: 30 } });
+    const otherSchool = await context.prisma.instituicao.create({ data: { nome: 'Outra Escola' } });
+    await context.prisma.disciplina.create({ data: { instituicaoId: otherSchool.id, codigo: 'EXTERNA', nome: 'Disciplina externa', cargaHorariaTotal: 100 } });
+    const panel = await get('/painel');
+    expect(panel.body).toMatchObject({ cargaHorariaMinutos: 7200, cargaHorariaVinculosMinutos: 5400, minutosAprovadosCurriculo: 0, minutosRestantesCurriculo: 7200 });
+    const course = await get(`/alunos/${studentId}/horas`);
+    expect(course.body.disciplinas).toHaveLength(2);
+    expect(course.body.disciplinas.find((row: { disciplinaId: string }) => row.disciplinaId === extra.id)).toMatchObject({ possuiVinculo: false, minutosAprovados: 0, minutosRestantes: 1800 });
+    const teacher = await get(`/alunos/${studentId}/horas`, teacherToken);
+    expect(teacher.body.disciplinas).toHaveLength(1);
+    expect(teacher.body.disciplinas[0].disciplinaId).not.toBe(extra.id);
+    const unassigned = await get('/painel', otherStudentToken);
+    expect(unassigned.body).toMatchObject({ cargaHorariaMinutos: 7200, cargaHorariaVinculosMinutos: 0, minutosRestantesCurriculo: 7200 });
+  });
+
+  it('não compensa disciplina pendente com horas excedentes de outra', async () => {
+    const stage = await context.prisma.estagio.findUniqueOrThrow({ where: { id: stageId } });
+    await context.prisma.disciplina.update({ where: { id: stage.disciplinaId }, data: { cargaHorariaTotal: 1 } });
+    await context.prisma.disciplina.create({ data: { instituicaoId: institutionId, codigo: 'PENDENTE', nome: 'Disciplina pendente', cargaHorariaTotal: 1 } });
+    const record = await submitted();
+    expect((await approve([record])).status).toBe(200);
+    const panel = await get('/painel');
+    expect(panel.body).toMatchObject({ cargaHorariaMinutos: 120, minutosAprovadosCurriculo: 60, minutosRestantesCurriculo: 60 });
+    expect(panel.body.registros).toContainEqual({ status: 'aprovado', quantidade: 1, minutos: 270 });
+    const course = await get(`/alunos/${studentId}/horas`);
+    expect(course.body.disciplinas.find((row: { disciplinaId: string }) => row.disciplinaId === stage.disciplinaId)).toMatchObject({ minutosAprovados: 270, minutosRestantes: 0, minutosExcedentes: 210 });
+    await post(`/registros/${record.id}/reabrir`, { versao: 3, motivo: 'Rever atividade.' }, teacherToken);
+    expect((await get('/painel')).body).toMatchObject({ minutosAprovadosCurriculo: 0, minutosRestantesCurriculo: 120 });
+  });
   it('contabiliza os estados, restringe a visão por usuário e remove horas reabertas', async () => {
     const approved = await submitted();
     expect((await approve([approved])).status).toBe(200);

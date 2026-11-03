@@ -1,7 +1,7 @@
 import type { RequestHandler } from 'express';
-import { prisma } from '../lib/prisma.js';
+import { findSessionUser } from './repository.js';
 import { HttpError } from '../lib/errors.js';
-import { publicUserSelect, type Actor } from './service.js';
+import type { Actor } from './user-select.js';
 import type { TokenService } from './token.js';
 
 export function requireAuth(tokens: TokenService): RequestHandler {
@@ -14,9 +14,7 @@ export function requireAuth(tokens: TokenService): RequestHandler {
     } catch {
       throw new HttpError(401, 'Sessão inválida ou expirada.');
     }
-    const user = await prisma.usuario.findUnique({
-      where: { id: claims.sub }, select: { ...publicUserSelect, tokenVersao: true, senhaHash: true },
-    });
+    const user = await findSessionUser(claims.sub);
     if (!user?.ativo || !user.senhaHash || user.tokenVersao !== claims.versao) {
       throw new HttpError(401, 'Sessão inválida ou expirada.');
     }

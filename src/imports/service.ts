@@ -2,7 +2,8 @@ import { parse } from 'csv-parse/sync';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { Prisma } from '../generated/prisma/client.js';
-import { prisma } from '../lib/prisma.js';
+import { transaction } from '../lib/transaction.js';
+import * as repository from './repository.js';
 import { HttpError } from '../lib/errors.js';
 import { createUserSchema } from '../auth/schemas.js';
 import { prepareInvite, type Actor } from '../auth/service.js';
@@ -47,9 +48,7 @@ export async function previewImport(actor: Actor, csv: unknown) {
   const rows = readCsv(csv);
   const frequency = new Map<string, number>();
   for (const row of rows) frequency.set(row.email, (frequency.get(row.email) ?? 0) + 1);
-  const existing = await prisma.usuario.findMany({
-    where: { email: { in: rows.map((row) => row.email) } }, select: { email: true },
-  });
+  const existing = await repository.usedEmails(rows.map((row) => row.email));
   const used = new Set(existing.map((user) => user.email));
   for (const row of rows) {
     if ((frequency.get(row.email) ?? 0) > 1) row.erros.push('E-mail repetido no arquivo.');
@@ -60,37 +59,26 @@ export async function previewImport(actor: Actor, csv: unknown) {
 
   const now = new Date();
   const expiraEm = new Date(now.getTime() + 30 * 60 * 1000);
-  const preview = await prisma.$transaction(async (tx) => {
+  const preview = await transaction(async (tx) => {
     // Remove expired personal data from this coordinator's previous previews.
-    await tx.importacaoAlunos.updateMany({
-      where: { instituicaoId: actor.instituicaoId, criadoPorId: actor.id, expiraEm: { lte: now }, confirmadaEm: null },
-      data: { dados: Prisma.DbNull },
-    });
-    return tx.importacaoAlunos.create({
-      data: {
+    await repository.clearExpired(tx, actor.instituicaoId, actor.id, now);
+    return repository.insertPreview(tx, {
         instituicaoId: actor.instituicaoId, criadoPorId: actor.id, quantidade: rows.length, expiraEm,
         dados: rows.map(({ nome, email }) => ({ nome, email })),
-      },
-      select: { id: true },
-    });
+      });
   });
   return { podeConfirmar: true, id: preview.id, expiraEm, quantidade: rows.length, alunos: rows };
 }
 
 export async function confirmImport(actor: Actor, id: string) {
   try {
-    return await prisma.$transaction(async (tx) => {
-      const preview = await tx.importacaoAlunos.findFirst({
-        where: { id, instituicaoId: actor.instituicaoId, criadoPorId: actor.id },
-      });
+    return await transaction(async (tx) => {
+      const preview = await repository.findPreview(tx, actor.instituicaoId, actor.id, id);
       if (!preview) throw new HttpError(404, 'Prévia não encontrada.');
       if (preview.confirmadaEm) throw new HttpError(409, 'Esta importação já foi confirmada.');
       if (preview.expiraEm <= new Date()) throw new HttpError(410, 'Prévia expirada. Envie o CSV novamente.');
       const rows = storedRowsSchema.parse(preview.dados);
-      const claimed = await tx.importacaoAlunos.updateMany({
-        where: { id, instituicaoId: actor.instituicaoId, criadoPorId: actor.id, confirmadaEm: null, expiraEm: { gt: new Date() } },
-        data: { confirmadaEm: new Date(), dados: Prisma.DbNull },
-      });
+      const claimed = await repository.claimPreview(tx, actor.instituicaoId, actor.id, id);
       if (claimed.count !== 1) throw new HttpError(409, 'Prévia indisponível. Gere outra prévia.');
 
       const users = rows.map((row) => {
@@ -98,8 +86,8 @@ export async function confirmImport(actor: Actor, id: string) {
         return { id: randomUUID(), nome: input.nome, email: input.email, perfil: 'aluno' as const, instituicaoId: actor.instituicaoId, criadoPorId: actor.id };
       });
       const invitations = users.map((user) => prepareInvite(user.id, actor.id));
-      await tx.usuario.createMany({ data: users });
-      await tx.conviteUsuario.createMany({ data: invitations.map((invite) => invite.data) });
+      await repository.insertStudents(tx, users);
+      await repository.insertInvitations(tx, invitations.map((invite) => invite.data));
       return {
         importacaoId: id, quantidade: users.length,
         alunos: users.map((user, index) => ({ id: user.id, nome: user.nome, email: user.email, perfil: user.perfil, convite: invitations[index]!.publico })),

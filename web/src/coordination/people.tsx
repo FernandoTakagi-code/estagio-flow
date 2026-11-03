@@ -1,23 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
 import { api, allPages } from '../lib/api';
 import { errorMessage } from '../lib/utils';
 import { Button } from '../components/ui/button';
 import { Modal } from '../components/ui/modal';
-import { Feedback, InvitationList, matches, Search, useOperation } from './shared';
+import { Feedback, InvitationList, useOperation } from './shared';
 import type { Enrollment, Invitation, Invite, Person, Registry } from './types';
 
-export function People({ data, onOpen }: { data: Registry; onOpen: (person: Person) => void }) {
-  const [query, setQuery] = useState('');
-  const [role, setRole] = useState('');
-  const filtered = data.people.filter((person) => person.perfil !== 'coordenacao' && (!role || person.perfil === role) && matches(`${person.nome} ${person.email}`, query));
-  return <section><header className="section-header"><h2>Alunos e professoras</h2><span className="muted">{filtered.length} pessoas</span></header><div className="coord-toolbar"><Search value={query} onChange={setQuery} /><label>Perfil<select value={role} onChange={(event) => setRole(event.target.value)}><option value="">Todos</option><option value="aluno">Alunos</option><option value="professora">Professoras</option></select></label></div>
-    <div className="coord-list">{filtered.map((person) => {
-      const enrollment = data.enrollments.find((item) => item.alunoId === person.id);
-      return <button className="coord-person coord-list-button" key={person.id} onClick={() => onOpen(person)}><div><strong>{person.nome}</strong><span>{person.email}</span></div><span>{person.perfil === 'aluno' ? 'Aluno' : 'Professora'}</span><span>{person.perfil === 'aluno' ? enrollment?.turma.codigo ?? 'Sem turma' : person.coren ?? 'COREN não informado'}</span><span className={!person.ativo ? 'muted' : person.convitePendente ? 'attention-text' : 'success-text'}>{!person.ativo ? 'Desativada' : person.convitePendente ? 'Convite pendente' : 'Ativa'}</span><ChevronRight size={18} /></button>;
-    })}{!filtered.length && <p className="empty-state">Nenhuma pessoa encontrada. Cadastre uma pessoa ou importe alunos.</p>}</div>
-  </section>;
-}
 export function NewPerson({ onClose, onChanged }: { onClose: () => void; onChanged: () => void }) {
   const operation = useOperation();
   const [role, setRole] = useState('aluno');
@@ -33,7 +21,7 @@ export function NewPerson({ onClose, onChanged }: { onClose: () => void; onChang
   </Modal>;
 }
 export function PersonDetail({ person, data, onClose, onChanged }: { person: Person; data: Registry; onClose: () => void; onChanged: () => void }) {
-  const current = data.people.find((item) => item.id === person.id) ?? person;
+  const [current, setCurrent] = useState(person);
   const operation = useOperation();
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [history, setHistory] = useState<Enrollment[]>([]);
@@ -42,11 +30,10 @@ export function PersonDetail({ person, data, onClose, onChanged }: { person: Per
   const [revision, setRevision] = useState(0);
   const [classId, setClassId] = useState('');
   const [confirmation, setConfirmation] = useState<'active' | 'enroll' | 'close' | 'invite' | null>(null);
-  const enrollment = data.enrollments.find((item) => item.alunoId === person.id);
+  const enrollment = current.matriculaAtiva;
   useEffect(() => {
-    if (person.perfil !== 'aluno') return;
     const controller = new AbortController(); setLoading(true); setHistoryError('');
-    void allPages<Enrollment>(`/academico/alunos/${person.id}/matriculas`, 'matriculas', controller.signal).then(setHistory).catch((cause: unknown) => { if (!controller.signal.aborted) setHistoryError(errorMessage(cause)); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    void Promise.all([api<{ usuario: Person }>(`/usuarios/${person.id}`, { signal: controller.signal }), person.perfil === 'aluno' ? allPages<Enrollment>(`/academico/alunos/${person.id}/matriculas`, 'matriculas', controller.signal) : Promise.resolve([])]).then(([response, rows]) => { if (!controller.signal.aborted) { setCurrent(response.usuario); setHistory(rows); } }).catch((cause: unknown) => { if (!controller.signal.aborted) setHistoryError(errorMessage(cause)); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [person.id, person.perfil, revision]);
   async function confirm() {
@@ -58,10 +45,10 @@ export function PersonDetail({ person, data, onClose, onChanged }: { person: Per
       setConfirmation(null); setRevision((value) => value + 1); onChanged();
     });
   }
-  return <Modal title={person.nome} description={person.email} onClose={() => { if (!operation.busy) onClose(); }}><Feedback error={operation.error} />
+  return <Modal title={person.nome} description={person.email} onClose={() => { if (!operation.busy) onClose(); }}><Feedback error={operation.error || historyError} />
     <div className="coord-detail-info"><span>{person.perfil === 'aluno' ? 'Aluno' : 'Professora'}</span><strong>{!current.ativo ? 'Conta desativada' : current.convitePendente ? 'Convite pendente' : 'Conta ativa'}</strong></div>
     {person.coren && <p className="muted">{person.coren}</p>}
-    <div className="coord-actions">{current.ativo && current.convitePendente && <Button variant="ghost" onClick={() => setConfirmation('invite')} disabled={operation.busy}>Gerar novo convite</Button>}<Button variant="ghost" onClick={() => setConfirmation('active')} disabled={operation.busy}>{current.ativo ? 'Desativar conta' : 'Reativar conta'}</Button></div>
+    <div className="coord-actions">{current.ativo && current.convitePendente && <Button variant="ghost" onClick={() => setConfirmation('invite')} disabled={operation.busy || loading || Boolean(historyError)}>Gerar novo convite</Button>}<Button variant="ghost" onClick={() => setConfirmation('active')} disabled={operation.busy || loading || Boolean(historyError)}>{current.ativo ? 'Desativar conta' : 'Reativar conta'}</Button></div>
     {person.perfil === 'aluno' && <section className="coord-detail-section"><h3>Matrícula</h3><p className="muted">{enrollment ? `Turma atual: ${enrollment.turma.codigo}` : 'Aluno sem turma ativa.'}</p><form className="record-form" onSubmit={(event) => { event.preventDefault(); setConfirmation('enroll'); }}><label>Turma<select required value={classId} onChange={(event) => setClassId(event.target.value)}><option value="">Selecione uma turma</option>{data.classes.map((item) => <option key={item.id} value={item.id}>{item.codigo}</option>)}</select></label><div className="coord-actions"><Button type="submit" disabled={!current.ativo || operation.busy || !classId || classId === enrollment?.turmaId}>{enrollment ? 'Transferir de turma' : 'Matricular'}</Button>{enrollment && <Button variant="ghost" disabled={operation.busy} onClick={() => setConfirmation('close')}>Encerrar matrícula</Button>}</div></form>
       <h3 className="coord-history-heading">Histórico de turmas</h3>{loading ? <p role="status">Carregando matrículas…</p> : historyError ? <p role="alert" className="form-error">{historyError}<Button variant="ghost" onClick={() => setRevision((value) => value + 1)}>Tentar novamente</Button></p> : history.length ? history.map((item) => <p className="coord-history-line" key={item.id}><strong>{item.turma.codigo}</strong><span>{new Date(item.iniciadoEm).toLocaleDateString('pt-BR')} · {item.encerradoEm ? `Encerrada em ${new Date(item.encerradoEm).toLocaleDateString('pt-BR')}` : 'Ativa'}</span></p>) : <p className="muted">Nenhuma matrícula anterior.</p>}
     </section>}

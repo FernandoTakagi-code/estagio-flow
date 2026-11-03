@@ -137,6 +137,37 @@ describe('cadastros acadêmicos', () => {
 });
 
 describe('matrículas e grupos de estágio', () => {
+  it('calcula alunos elegíveis no servidor e revalida o vínculo na inclusão', async () => {
+    await enroll(); await enroll(student2.id, class2Id);
+    const id = await group();
+    const path = `/estagios/${id}/alunos-elegiveis`;
+    const response = await get(path);
+    expect(response.status).toBe(200);
+    expect(response.body.alunos).toEqual([{ id: student.id, nome: 'Pessoa Fictícia' }]);
+    expect(response.headers['cache-control']).toBe('no-store');
+    for (const bearer of [studentToken, teacherToken]) expect((await get(path, bearer)).status).toBe(403);
+    expect((await get(`${path}?pagina=2`)).body.alunos).toEqual([]);
+    expect((await get(`${path}?busca=inexistente`)).body.alunos).toEqual([]);
+    expect((await get(`${path}?pagina=0`)).status).toBe(400);
+    expect((await get(`${path}?busca=${'a'.repeat(101)}`)).status).toBe(400);
+    // Data changed after the browser's lookup: the mutation must check again.
+    await context.prisma.usuario.update({ where: { id: student.id }, data: { ativo: false } });
+    expect((await get(path)).body.alunos).toEqual([]);
+    expect((await assign(id)).status).toBe(404);
+    await context.prisma.usuario.update({ where: { id: student.id }, data: { ativo: true } });
+    expect((await assign(id)).status).toBe(201);
+    expect((await get(path)).body.alunos).toEqual([]);
+    expect((await request(app).post(`/academico/estagios/${id}/encerrar`).auth(token, { type: 'bearer' })).status).toBe(204);
+    expect((await get(path)).status).toBe(409);
+  });
+
+  it('não revela grupo de outra instituição na consulta de elegíveis', async () => {
+    const other = await context.prisma.instituicao.create({ data: { nome: 'Escola externa fictícia' } });
+    const coordinator = await context.createCoordinator({ instituicaoId: other.id, nome: 'Coordenação externa', email: 'externa@example.test', senha: 'SenhaFicticiaParaTeste2026!' });
+    const otherToken = await createTokenService(process.env.JWT_SECRET).issue(coordinator.id, 0);
+    const id = await group();
+    expect((await get(`/estagios/${id}/alunos-elegiveis`, otherToken)).status).toBe(404);
+  });
   it('lista matrículas ativas da instituição somente para a coordenação', async () => {
     await enroll();
     await enroll(student.id, class2Id);

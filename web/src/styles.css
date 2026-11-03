@@ -110,6 +110,34 @@ h3 { font-size: 19px; font-weight: 600; letter-spacing: -.45px; line-height: 1.4
 .correction-action { color: var(--orange); padding-inline: 0; font-size: 12px; }
 .row-open { color: var(--muted); padding: 8px; }
 .sheet-filter { display: flex; flex-direction: row; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); max-width: 100%; }
+.course-summary { display: flex; flex-wrap: wrap; gap: 24px 48px; padding-block: 28px; border-bottom: 1px solid var(--border); }
+.course-summary > div { display: flex; flex-direction: column; gap: 6px; }
+.course-summary strong { font-size: 30px; font-weight: 500; letter-spacing: -1px; }
+.course-summary span { color: var(--muted); font-size: 14px; }
+.course-explanation { padding-block: 22px; max-width: 850px; line-height: 1.7; }
+.course-head, .course-row { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(90px, .6fr)); gap: 24px; align-items: center; }
+.course-head { color: var(--muted); font-size: 13px; padding-block: 12px; border-bottom: 1px solid var(--border); }
+.course-row { padding-block: 26px; border-bottom: 1px solid var(--border); }
+.course-name { min-width: 0; }
+.course-name h3 { font-size: 18px; }
+.course-name .progress-track { margin-top: 14px; max-width: 320px; }
+.course-number strong { font-size: 16px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.course-number > span { display: none; }
+.course-excess { color: var(--orange); margin-top: 8px; }
+@media (max-width: 900px) {
+  .course-head { display: none; }
+  .course-row { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px 12px; }
+  .course-name { grid-column: 1 / -1; }
+  .course-number > span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+}
+@media (max-width: 640px) {
+  .course-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 24px 18px; }
+  .course-summary strong { font-size: 26px; }
+  .course-summary span { font-size: 12px; }
+  .course-number strong { font-size: 15px; }
+  .course-number > span { font-size: 11px; }
+  .course-name h3 { font-size: 17px; }
+}
 .sheet-filter select { width: min(390px, 100%); margin: 0; font-size: 13px; min-height: 40px; padding: 8px 12px; }
 .record-select input { width: 16px; height: 16px; margin: 0; accent-color: var(--primary); }
 .batch-toolbar { display: flex; align-items: center; gap: 14px; padding-block: 14px; font-size: 14px; border-bottom: 1px solid var(--border); }

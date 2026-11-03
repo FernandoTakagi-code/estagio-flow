@@ -94,6 +94,8 @@ Consulte [a explicação do banco](docs/database.md) para entender as decisões 
 
 ## Interface web
 
+Consulte [a arquitetura](docs/architecture.md) para entender a separação entre rotas, controllers, serviços, repositórios e interface.
+
 A interface React fica em `web/`, com login, convite, registros do aluno e revisão da professora. Consulte [o guia do frontend](docs/frontend.md) para executar, testar e entender a separação entre interface e API.
 
 ## Próximas etapas
