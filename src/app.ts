@@ -2,15 +2,15 @@ import express, { type ErrorRequestHandler } from 'express';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { createHash } from 'node:crypto';
-import { ZodError, z } from 'zod';
-import { prisma } from './lib/prisma.js';
+import { ZodError } from 'zod';
+import { createAuthController } from './auth/controller.js';
+import * as users from './usuarios/controller.js';
+import * as imports from './imports/controller.js';
 import { Prisma } from './generated/prisma/client.js';
 import { HttpError } from './lib/errors.js';
-import { createTokenService, tokenDurationSeconds } from './auth/token.js';
+import { createTokenService } from './auth/token.js';
 import { requireAuth, requireCoordinator } from './auth/middleware.js';
-import { loginSchema, acceptInviteSchema, createUserSchema, userIdSchema, activeSchema, listSchema } from './auth/schemas.js';
-import { authenticate, acceptInvite, createUser, reissueInvite, setUserActive, publicUserSelect, type Actor } from './auth/service.js';
-import { previewImport, confirmImport } from './imports/service.js';
+import type { Actor } from './auth/user-select.js';
 import { createAcademicRouter } from './academico/routes.js';
 import { createRecordsRouter } from './registros/routes.js';
 
@@ -37,25 +37,11 @@ export function createApp() {
   app.get('/health', (_req, res) => { res.json({ status: 'ok' }); });
   app.use('/auth', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
 
-  app.post('/auth/login', ipLimiter(), loginAccountLimiter, async (req, res) => {
-    const input = loginSchema.parse(req.body);
-    const { user, tokenVersao } = await authenticate(input.email, input.senha);
-    const accessToken = await tokens.issue(user.id, tokenVersao);
-    res.json({ accessToken, tokenType: 'Bearer', expiresIn: tokenDurationSeconds, usuario: user });
-  });
-
-  app.post('/auth/convites/aceitar', ipLimiter(), async (req, res) => {
-    const input = acceptInviteSchema.parse(req.body);
-    await acceptInvite(input.token, input.senha);
-    res.status(204).end();
-  });
-
-  app.get('/auth/me', auth, (_req, res) => { res.json({ usuario: res.locals.actor }); });
-  app.post('/auth/logout', auth, async (_req, res) => {
-    const actor = res.locals.actor as Actor;
-    await prisma.usuario.update({ where: { id: actor.id }, data: { tokenVersao: { increment: 1 } } });
-    res.status(204).end();
-  });
+  const authentication = createAuthController(tokens);
+  app.post('/auth/login', ipLimiter(), loginAccountLimiter, authentication.login);
+  app.post('/auth/convites/aceitar', ipLimiter(), authentication.accept);
+  app.get('/auth/me', auth, authentication.me);
+  app.post('/auth/logout', auth, authentication.logout);
 
   app.use('/usuarios', auth, requireCoordinator, (_req, res, next) => {
     res.setHeader('Cache-Control', 'no-store'); next();
@@ -65,42 +51,13 @@ export function createApp() {
     standardHeaders: 'draft-8', legacyHeaders: false, message: limitMessage,
     keyGenerator: (_req, res) => (res.locals.actor as Actor).id,
   });
-  app.post('/usuarios/importacoes/previa', importLimiter, express.text({ type: 'text/csv', limit: '64kb' }), async (req, res) => {
-    if (!req.is('text/csv')) throw new HttpError(415, 'Envie o CSV com Content-Type text/csv.');
-    const result = await previewImport(res.locals.actor as Actor, req.body);
-    res.json(result);
-  });
-  app.post('/usuarios/importacoes/:id/confirmar', importLimiter, async (req, res) => {
-    const id = userIdSchema.parse(req.params.id);
-    z.strictObject({ confirmar: z.literal(true) }).parse(req.body);
-    const result = await confirmImport(res.locals.actor as Actor, id);
-    res.status(201).json(result);
-  });
-  app.post('/usuarios', async (req, res) => {
-    const input = createUserSchema.parse(req.body);
-    const result = await createUser(res.locals.actor as Actor, input);
-    res.status(201).json(result);
-  });
-  app.get('/usuarios', async (req, res) => {
-    const { pagina } = listSchema.parse(req.query);
-    const actor = res.locals.actor as Actor;
-    const usuarios = await prisma.usuario.findMany({
-      where: { instituicaoId: actor.instituicaoId }, select: { ...publicUserSelect, senhaHash: true },
-      orderBy: [{ criadoEm: 'asc' }, { id: 'asc' }], skip: (pagina - 1) * 50, take: 50,
-    });
-    res.json({ usuarios: usuarios.map(({ senhaHash, ...usuario }) => ({ ...usuario, convitePendente: senhaHash === null })), pagina, porPagina: 50 });
-  });
-  app.post('/usuarios/:id/convite', async (req, res) => {
-    const id = userIdSchema.parse(req.params.id);
-    const convite = await reissueInvite(res.locals.actor as Actor, id);
-    res.status(201).json({ convite });
-  });
-  app.patch('/usuarios/:id/ativo', async (req, res) => {
-    const id = userIdSchema.parse(req.params.id);
-    const { ativo } = activeSchema.parse(req.body);
-    const usuario = await setUserActive(res.locals.actor as Actor, id, ativo);
-    res.json({ usuario });
-  });
+  app.post('/usuarios/importacoes/previa', importLimiter, express.text({ type: 'text/csv', limit: '64kb' }), imports.preview);
+  app.post('/usuarios/importacoes/:id/confirmar', importLimiter, imports.confirm);
+  app.post('/usuarios', users.create);
+  app.get('/usuarios', users.list);
+  app.get('/usuarios/:id', users.find);
+  app.post('/usuarios/:id/convite', users.reissue);
+  app.patch('/usuarios/:id/ativo', users.active);
 
   app.use('/academico', auth, (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); }, createAcademicRouter());
   app.use('/frequencia', auth, (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); }, createRecordsRouter());

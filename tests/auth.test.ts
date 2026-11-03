@@ -115,6 +115,34 @@ describe('autenticação e autorização', () => {
 });
 
 describe('cadastro e convites', () => {
+  it('busca e pagina pessoas no servidor sem misturar instituições ou expor credenciais', async () => {
+    const created = await invite('busca@example.test');
+    const other = await prisma.instituicao.create({ data: { nome: 'Escola externa' } });
+    const foreign = await prisma.usuario.create({ data: { instituicaoId: other.id, nome: 'Pessoa Fictícia Externa', email: 'busca-externa@example.test', perfil: 'aluno' } });
+    await prisma.usuario.createMany({ data: Array.from({ length: 51 }, (_, index) => ({ instituicaoId: coordinator.instituicaoId, nome: `Pessoa paginada ${index}`, email: `paginada${index}@example.test`, perfil: 'aluno' as const })) });
+    const list = (query: string) => request(app).get(`/usuarios?${query}`).auth(coordinatorToken, { type: 'bearer' });
+    const filtered = await list('busca=BUSCA&perfil=aluno&cadastros=1');
+    expect(filtered.status).toBe(200);
+    expect(filtered.body.total).toBe(1);
+    expect(filtered.body.usuarios[0].id).toBe(created.body.usuario.id);
+    expect(filtered.body.usuarios[0]).not.toHaveProperty('senhaHash');
+    expect(filtered.body.usuarios[0]).not.toHaveProperty('matriculas');
+    const first = await list('cadastros=1');
+    const second = await list('cadastros=1&pagina=2');
+    expect(first.body.total).toBe(52);
+    expect(first.body.usuarios).toHaveLength(50);
+    expect(second.body.usuarios).toHaveLength(2);
+    const ids = [...first.body.usuarios, ...second.body.usuarios].map((row: { id: string }) => row.id);
+    expect(new Set(ids).size).toBe(52);
+    expect(ids).not.toContain(foreign.id);
+    expect((await list('perfil=invalido')).status).toBe(400);
+    expect((await list('ativo=invalido')).status).toBe(400);
+    expect((await list(`busca=${'a'.repeat(101)}`)).status).toBe(400);
+    expect((await request(app).get(`/usuarios/${foreign.id}`).auth(coordinatorToken, { type: 'bearer' })).status).toBe(404);
+    const detail = await request(app).get(`/usuarios/${created.body.usuario.id}`).auth(coordinatorToken, { type: 'bearer' });
+    expect(detail.body.usuario.convitePendente).toBe(true);
+    expect(detail.body.usuario).not.toHaveProperty('senhaHash');
+  });
   it('informa convite pendente sem expor o hash ou tokens na lista', async () => {
     const created = await invite();
     const list = () => request(app).get('/usuarios').auth(coordinatorToken, { type: 'bearer' });
