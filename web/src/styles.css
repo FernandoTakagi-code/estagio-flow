@@ -26,6 +26,8 @@ h3 { font-size: 19px; font-weight: 600; letter-spacing: -.45px; line-height: 1.4
 .button-icon { width: 42px; height: 42px; padding: 10px; }
 .button-primary { background: var(--primary); color: #fff; }
 .button-primary:hover { background: #105508; }
+.button-outline { background: #fff; color: #185f15; border: 1px solid #6f8e73; }
+.button-outline:hover { background: #edf5ec; border-color: #176e0e; }
 .button-light { background: #fff; color: var(--forest); }
 .button-light:hover { background: #ecf6ec; }
 .button-ghost { background: transparent; color: inherit; }

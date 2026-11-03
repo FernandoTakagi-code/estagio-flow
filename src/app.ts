@@ -12,6 +12,7 @@ import { createTokenService } from './auth/token.js';
 import { requireAuth, requireCoordinator } from './auth/middleware.js';
 import type { Actor } from './auth/user-select.js';
 import { createAcademicRouter } from './academico/routes.js';
+import { createAgendaRouter } from './agenda/routes.js';
 import { createRecordsRouter } from './registros/routes.js';
 
 export function createApp() {
@@ -61,6 +62,7 @@ export function createApp() {
 
   app.use('/academico', auth, (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); }, createAcademicRouter());
   app.use('/frequencia', auth, (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); }, createRecordsRouter());
+  app.use('/agenda', auth, (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); }, createAgendaRouter());
 
   app.use((_req, res) => { res.status(404).json({ erro: 'Rota não encontrada.' }); });
   const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, _next) => {

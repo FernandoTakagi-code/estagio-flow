@@ -37,6 +37,9 @@ for (const [data, atividades, status, horaFim] of [
   if (status === 'aprovado') await approveRecords(teacher as Actor, { registros: [{ id: sent.id, versao: sent.versao }] });
   if (status === 'devolvido') await changeRecord(teacher as Actor, sent.id, sent.versao, 'devolver', undefined, 'Detalhe as atividades realizadas.');
 }
+const agenda = await import('../../src/agenda/service.js');
+await agenda.create(coordinator as Actor, { estagioId: first.estagioId, data: '2026-11-02', horaInicio: '07:00', horaFim: '13:00' });
+await agenda.create(coordinator as Actor, { estagioId: first.estagioId, data: '2026-11-04', horaInicio: '07:00', horaFim: '13:00' });
 const server = context.createApp().listen(3101, '127.0.0.1', () => console.log('API de teste local: http://127.0.0.1:3101. Dados fictícios em memória; Supabase não é utilizado.'));
 async function shutdown() { server.close(); await db.$disconnect(); await context.socket.stop(); await context.database.close(); process.exit(0); }
 process.on('SIGINT', () => void shutdown());

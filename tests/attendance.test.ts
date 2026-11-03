@@ -16,6 +16,18 @@ let teacherToken: string;
 let otherTeacherToken: string;
 let coordinatorToken: string;
 const day = '2026-01-15';
+const scheduleInput = (overrides: Record<string, unknown> = {}) => ({ estagioId: stageId, data: day, horaInicio: '08:00', horaFim: '12:30', ...overrides });
+const schedule = (overrides: Record<string, unknown> = {}, bearer = coordinatorToken) => request(app).post('/agenda/sessoes').auth(bearer, { type: 'bearer' }).send(scheduleInput(overrides));
+const markSession = (id: string, overrides: Record<string, unknown> = {}, bearer = teacherToken) => request(app).put(`/agenda/sessoes/${id}/frequencia`).auth(bearer, { type: 'bearer' }).send({ vinculoId: linkId, versao: 0, situacao: 'presente', ...overrides });
+const agendaGet = (path: string, bearer = studentToken) => request(app).get('/agenda' + path).auth(bearer, { type: 'bearer' });
+const batchMark = (id: string, lancamentos: object[], bearer = teacherToken) => request(app).put(`/agenda/sessoes/${id}/chamada`).auth(bearer, { type: 'bearer' }).send({ lancamentos });
+async function anotherScheduledStudent() {
+  const db = context.prisma;
+  const original = await db.vinculoEstagio.findUniqueOrThrow({ where: { id: linkId } });
+  const student = await db.usuario.findUniqueOrThrow({ where: { email: 'outro@example.test' } });
+  const enrollment = await db.matriculaTurma.create({ data: { instituicaoId: institutionId, turmaId: original.turmaId, alunoId: student.id, criadoPorId: original.criadoPorId, iniciadoEm: new Date('2020-01-01T12:00:00Z') } });
+  return db.vinculoEstagio.create({ data: { ...original, id: undefined, alunoId: student.id, matriculaId: enrollment.id } });
+}
 const body = (overrides: Record<string, unknown> = {}) => ({ vinculoId: linkId, data: day, horaInicio: '08:00', horaFim: '12:30', atividades: 'Atividades fictícias de aprendizagem.', ...overrides });
 const post = (path: string, data: object, bearer = studentToken) => request(app).post('/frequencia' + path).auth(bearer, { type: 'bearer' }).send(data);
 const get = (path: string, bearer = studentToken) => request(app).get('/frequencia' + path).auth(bearer, { type: 'bearer' });
@@ -65,6 +77,135 @@ afterAll(async () => {
 });
 
 describe('registros de frequência', () => {
+  it('salva presença e falta de vários alunos em uma chamada sem gerar horas automáticas', async () => {
+    const other = await anotherScheduledStudent();
+    const session = (await schedule()).body.sessao;
+    expect((await batchMark(session.id, [{ vinculoId: linkId, versao: 0, situacao: 'falta' }, { vinculoId: other.id, versao: 0, situacao: 'presente' }])).status).toBe(200);
+    const response = await agendaGet(`/sessoes/${session.id}`, teacherToken);
+    expect(response.body.alunos.find((row: { vinculoId: string }) => row.vinculoId === linkId).frequencia.situacao).toBe('falta');
+    expect(response.body.alunos.find((row: { vinculoId: string }) => row.vinculoId === other.id).frequencia.situacao).toBe('presente');
+    expect((await get('/painel')).body.registros).toEqual([]);
+    expect(await context.prisma.eventoAgenda.count()).toBe(3);
+  });
+
+  it('reverte a chamada inteira em conflito e exige autorização e alunos distintos', async () => {
+    const other = await anotherScheduledStudent();
+    const session = (await schedule()).body.sessao;
+    const item = { vinculoId: linkId, versao: 0, situacao: 'presente' };
+    for (const bearer of [studentToken, coordinatorToken]) expect((await batchMark(session.id, [item], bearer)).status).toBe(403);
+    expect((await batchMark(session.id, [item], otherTeacherToken)).status).toBe(404);
+    expect((await batchMark(session.id, [item, item])).status).toBe(400);
+    const response = await batchMark(session.id, [item, { vinculoId: other.id, versao: 1, situacao: 'falta' }]);
+    expect(response.status).toBe(409);
+    expect(await context.prisma.frequenciaSessao.count()).toBe(0);
+    expect(await context.prisma.eventoAgenda.count()).toBe(1);
+    expect((await batchMark(session.id, [item])).status).toBe(200);
+    const unmarked = (await agendaGet(`/sessoes/${session.id}`, teacherToken)).body.alunos.find((row: { vinculoId: string }) => row.vinculoId === other.id);
+    expect(unmarked.frequencia).toBeNull();
+  });
+
+  it('não sobrescreve uma chamada salva por outra requisição concorrente', async () => {
+    const other = await anotherScheduledStudent();
+    const session = (await schedule()).body.sessao;
+    const first = { vinculoId: linkId, versao: 0, situacao: 'presente' };
+    const second = { vinculoId: other.id, versao: 0, situacao: 'falta' };
+    const results = await Promise.all([batchMark(session.id, [first, second]), batchMark(session.id, [second, first])]);
+    expect(results.map((response) => response.status).sort()).toEqual([200, 409]);
+    expect(await context.prisma.frequenciaSessao.count()).toBe(2);
+  });
+
+  it('mantém as horas faltantes e aceita o próximo dia regular no mesmo horário sem reposição especial', async () => {
+    const missed = (await schedule()).body.sessao;
+    await markSession(missed.id, { situacao: 'falta' });
+    expect((await get('/painel')).body.registros).toEqual([]);
+    const next = (await schedule({ data: '2026-01-16' })).body.sessao;
+    await markSession(next.id);
+    const record = await create({ sessaoId: next.id, data: '2026-01-16' });
+    await post(`/registros/${record.id}/enviar`, { versao: 1 });
+    expect((await approve([{ id: record.id, versao: 2 }])).status).toBe(200);
+    const panel = await get('/painel');
+    expect(panel.body.minutosAprovadosCurriculo).toBe(270);
+    expect(panel.body.minutosRestantesCurriculo).toBe(5400 - 270);
+    expect((await agendaGet(`/sessoes/${missed.id}`)).body.alunos[0].frequencia.situacao).toBe('falta');
+    expect((await schedule({ data: '2026-01-17', faltaId: '00000000-0000-4000-8000-000000000000' })).status).toBe(400);
+  });
+  it('permite coordenação e professora organizar sessões, mas não alunos ou professoras externas', async () => {
+    expect((await schedule({}, studentToken)).status).toBe(403);
+    expect((await schedule({}, otherTeacherToken)).status).toBe(404);
+    expect((await schedule()).status).toBe(201);
+    expect((await schedule({ data: '2026-01-16' }, teacherToken)).status).toBe(201);
+    expect((await schedule()).status).toBe(409);
+    expect((await schedule({ data: '2026-02-30' })).status).toBe(400);
+    expect((await agendaGet('/sessoes', otherTeacherToken)).body.sessoes).toEqual([]);
+    expect((await agendaGet('/sessoes', otherStudentToken)).body.sessoes).toEqual([]);
+    expect((await request(app).get('/agenda/sessoes')).status).toBe(401);
+  });
+
+  it('não gera presença automática e só a professora responsável pode lançar frequência', async () => {
+    const session = (await schedule()).body.sessao;
+    const initial = await agendaGet(`/sessoes/${session.id}`);
+    expect(initial.body.alunos).toHaveLength(1);
+    expect(initial.body.alunos[0].frequencia).toBeNull();
+    for (const bearer of [studentToken, coordinatorToken]) expect((await markSession(session.id, {}, bearer)).status).toBe(403);
+    expect((await markSession(session.id, {}, otherTeacherToken)).status).toBe(404);
+    const marked = await markSession(session.id);
+    expect(marked.status).toBe(200);
+    expect((await markSession(session.id)).status).toBe(409);
+    expect((await get('/painel')).body.registros).toEqual([]);
+    expect((await agendaGet(`/sessoes/${session.id}/historico`)).status).toBe(403);
+    expect((await agendaGet(`/sessoes/${session.id}/historico`, teacherToken)).body.historico).toHaveLength(2);
+  });
+
+  it('impede frequência futura e alterações de sessões já utilizadas', async () => {
+    const future = (await schedule({ data: '2099-01-15' })).body.sessao;
+    expect((await markSession(future.id)).status).toBe(409);
+    const session = (await schedule()).body.sessao;
+    await markSession(session.id);
+    const cancelled = await request(app).post(`/agenda/sessoes/${session.id}/cancelar`).auth(coordinatorToken, { type: 'bearer' }).send({ versao: 1, motivo: 'Ajuste de exemplo.' });
+    expect(cancelled.status).toBe(409);
+    expect((await markSession(session.id, { versao: 1, situacao: 'justificada' })).status).toBe(400);
+    expect((await markSession(session.id, { versao: 1, situacao: 'justificada', motivo: 'Justificativa fictícia.' })).status).toBe(200);
+  });
+
+  it('exige presença confirmada e horário integral para registro vinculado à sessão', async () => {
+    const session = (await schedule()).body.sessao;
+    expect((await post('/registros', body())).status).toBe(409);
+    expect((await post('/registros', body({ sessaoId: session.id }))).status).toBe(409);
+    await markSession(session.id);
+    expect((await post('/registros', body({ sessaoId: session.id, horaFim: '11:00' }))).status).toBe(409);
+    const record = await create({ sessaoId: session.id });
+    expect((await edit(record.id, 1, { horaFim: '11:00' })).status).toBe(409);
+    expect((await markSession(session.id, { versao: 1, situacao: 'falta', motivo: 'Revisão fictícia.' })).status).toBe(409);
+    expect((await post(`/registros/${record.id}/enviar`, { versao: 1 })).status).toBe(200);
+    expect((await approve([{ id: record.id, versao: 2 }])).status).toBe(200);
+    expect((await agendaGet(`/sessoes/${session.id}`)).body.alunos[0].registro.aprovado).toBe(true);
+  });
+
+
+  it('altera e cancela cronograma com versão e motivo sem apagar histórico', async () => {
+    const session = (await schedule()).body.sessao;
+    const editSchedule = (versao: number) => request(app).put(`/agenda/sessoes/${session.id}`).auth(teacherToken, { type: 'bearer' }).send({ versao, data: '2026-01-16', horaInicio: '09:00', horaFim: '13:30', motivo: 'Reagendamento fictício.' });
+    expect((await editSchedule(1)).status).toBe(200);
+    expect((await editSchedule(1)).status).toBe(409);
+    const response = await request(app).post(`/agenda/sessoes/${session.id}/cancelar`).auth(coordinatorToken, { type: 'bearer' }).send({ versao: 2, motivo: 'Cancelamento fictício.' });
+    expect(response.body.sessao.cancelada).toBe(true);
+    expect((await markSession(session.id)).status).toBe(409);
+    expect((await agendaGet(`/sessoes/${session.id}/historico`, teacherToken)).body.historico).toHaveLength(3);
+  });
+
+
+  it('mantém RLS, isola instituições e rejeita vínculo cruzado na frequência', async () => {
+    const session = (await schedule()).body.sessao;
+    const other = await context.prisma.instituicao.create({ data: { nome: 'Outra Escola Fictícia' } });
+    const coordinator = await context.createCoordinator({ instituicaoId: other.id, nome: 'Outra Coordenação', email: 'outra-agenda@example.test', senha: 'SenhaFicticiaParaTeste2026!' });
+    const token = await createTokenService(process.env.JWT_SECRET).issue(coordinator.id, 0);
+    expect((await agendaGet(`/sessoes/${session.id}`, token)).status).toBe(404);
+    expect((await agendaGet('/sessoes', token)).body.sessoes).toEqual([]);
+    const flags = await context.prisma.$queryRaw<{ relrowsecurity: boolean }[]>`SELECT relrowsecurity FROM pg_class WHERE relname IN ('agenda_sessao', 'frequencia_sessao', 'evento_agenda')`;
+    expect(flags).toHaveLength(3);
+    expect(flags.every((row) => row.relrowsecurity)).toBe(true);
+    await expect(context.prisma.frequenciaSessao.create({ data: { instituicaoId: other.id, sessaoId: session.id, estagioId: stageId, vinculoId: linkId, professoraId: coordinator.id, situacao: 'falta' } })).rejects.toThrow();
+  });
   it('cria ficha automaticamente e calcula duração sem confiar em totais do cliente', async () => {
     const record = await create();
     expect(record.duracaoMinutos).toBe(270);

@@ -1,0 +1,48 @@
+.agenda-workspace { min-height: 350px; }
+.agenda-filters { display: grid; grid-template-columns: minmax(220px, 2fr) 1fr 1fr; gap: 22px; margin: 28px 0; }
+.agenda-row { display: grid; grid-template-columns: 210px minmax(0, 1fr) 120px 20px; gap: 26px; align-items: center; width: 100%; border: 0; border-bottom: 1px solid var(--border); background: transparent; padding: 24px 0; text-align: left; color: var(--foreground); }
+.agenda-row:hover { background: #176e0e05; }
+.agenda-row > div { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.agenda-row strong { font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
+.agenda-row div span { font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.agenda-person { padding-block: 20px; border-bottom: 1px solid var(--border); }
+.agenda-person p { margin-top: 7px; font-size: 14px; }
+.agenda-person-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.agenda-mark { padding: 20px 0; }
+.attendance-explanation { margin: 14px 0 22px; line-height: 1.6; }
+.attendance-heading { margin: 24px 0 8px; }
+.attendance-heading h3 { font-size: 21px; }
+.attendance-heading > p { margin-top: 8px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+.attendance-heading .attendance-counts { color: var(--foreground); margin-top: 14px; }
+.attendance-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 20px; align-items: center; border-bottom: 1px solid var(--border); padding: 22px 0; }
+.attendance-person { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.attendance-person strong { font-size: 18px; overflow-wrap: anywhere; }
+.attendance-person > span { font-size: 13px; color: var(--muted); }
+.attendance-options { display: flex; gap: 8px; }
+.attendance-options .attendance-choice { min-height: 46px; min-width: 95px; padding: 11px 14px; border: 1px solid #8a9c8e; color: #243b2a; background: #fff; font-weight: 600; }
+.attendance-options .choice-present { background: #176e0e; color: #fff; border-color: #176e0e; }
+.attendance-options .choice-absent { background: #b84800; color: #fff; border-color: #b84800; }
+.attendance-wide { grid-column: 1/-1; }
+.attendance-justify { display: flex; flex-direction: row; align-items: center; gap: 10px; font-size: 14px; width: fit-content; }
+.attendance-justify input { width: 18px; height: 18px; margin: 0; padding: 0; accent-color: #176e0e; }
+.attendance-save { position: sticky; bottom: 0; background: #fff; padding: 18px 0; border-top: 1px solid var(--border); margin-top: 12px; box-shadow: 0 -10px 18px #ffffffed; }
+.attendance-save > div:first-child { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+.attendance-save-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.session-management { border-top: 1px solid var(--border); padding-top: 18px; }
+@media(max-width:640px) {
+  .agenda-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+  .agenda-filters > label { min-width: 0; }
+  .agenda-filters > label:first-child { grid-column: 1/-1; }
+  .agenda-row { grid-template-columns: minmax(0, 1fr) 20px; gap: 14px; }
+  .agenda-row > div, .agenda-row > span { grid-column: 1; }
+  .agenda-row > svg { grid-column: 2; grid-row: 1; }
+  .agenda-row strong { font-size: 17px; }
+  .site-header nav { flex-wrap: wrap; }
+  .agenda-filters input { min-width: 0; width: 100%; }
+  .attendance-row { grid-template-columns: minmax(0, 1fr); padding-block: 20px; }
+  .attendance-options { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .attendance-options .attendance-choice { min-width: 0; width: 100%; }
+  .attendance-heading h3 { font-size: 20px; }
+  .attendance-person strong { font-size: 17px; }
+  .attendance-save-actions > .button { flex: 1; font-size: 14px; padding-inline: 14px; }
+}

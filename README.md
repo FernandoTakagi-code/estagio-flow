@@ -105,7 +105,7 @@ A interface React fica em `web/`, com login, convite, registros do aluno e revis
 - Fechamento definitivo das fichas com RT/COREN.
 - Painel da coordenação e relatórios.
 - Ampliação dos testes, CI e documentação OpenAPI.
-- Avaliação e controle de faltas na fase 2.
+- Avaliação acadêmica e fechamento definitivo de fichas.
 
 ## Licença
 
