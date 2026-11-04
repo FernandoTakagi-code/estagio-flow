@@ -5,7 +5,7 @@ import type { User } from './lib/types';
 import { errorMessage } from './lib/utils';
 import { Brand } from './components/brand';
 import { Button } from './components/ui/button';
-import { LegalChoices, acknowledgement, useLegalDocuments } from './legal';
+import { LegalChoices, LegalLinks, acknowledgement, useLegalDocuments } from './legal';
 import { DemoMail } from './demo-mail';
 type Mode = 'login' | 'invite' | 'forgot' | 'reset';
 export function Auth({ onLogin, initialInvite, initialReset = '', notice }: { onLogin: (token: string, user: User, expiresIn: number) => void; initialInvite: string; initialReset?: string; notice: string }) {
@@ -45,6 +45,6 @@ export function Auth({ onLogin, initialInvite, initialReset = '', notice }: { on
     </div>
     {options.caixaDemonstracao && <div className="auth-demo-action"><Button variant="ghost" size="small" disabled={busy} onClick={() => setInbox(true)}>E-mails de demonstração</Button></div>}
     {mode === 'forgot' && !options.recuperacaoDisponivel && <p className="field-hint">O envio de e-mails pode estar indisponível. Nesse caso, fale com a coordenação.</p>}
-    <p className="auth-help">Precisa de acesso? Fale com a coordenação.</p>
+    <div className="auth-help"><p>Precisa de acesso? Fale com a coordenação.</p>{documents && <LegalLinks documents={documents} compact />}</div>
   </form></section>{inbox && <DemoMail onClose={() => setInbox(false)} />}</main>;
 }

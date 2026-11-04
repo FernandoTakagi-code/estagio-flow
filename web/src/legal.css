@@ -1,5 +1,8 @@
 .legal-links { display: flex; gap: 10px; flex-wrap: wrap; }
 .legal-footer { padding-block: 18px 30px; }
+.legal-links-compact { justify-content: center; gap: 12px; margin-top: 4px; }
+.legal-links-compact .button { min-height: 36px; padding: 6px 2px; border-radius: 0; font-size: 12px; font-weight: 400; color: var(--muted); background: transparent; }
+.legal-links-compact .button:hover { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
 .legal-document { white-space: pre-wrap; font-size: 15px; line-height: 1.8; margin-block: 24px; overflow-wrap: anywhere; }
 .legal-choices { margin-block: 20px; }
 .legal-choices > label { display: flex; flex-direction: row; align-items: flex-start; gap: 12px; font-size: 14px; line-height: 1.6; margin-block: 16px; }

@@ -33,3 +33,5 @@ Após o teste manual aprovado, as ações secundárias do login, convite e recup
 | Responsividade | Revisão em desktop, 390px e 320px; largura do documento igual à viewport no teste de 320px |
 
 Conceito aprovado e novas capturas abertos com view_image nesta revisão. Evidências: acesso-acoes-corrigidas.png e acesso-acoes-mobile.png na pasta de visualizações da conversa. TypeScript, build do frontend e git diff --check passaram. Sem alteração na lógica de autenticação.
+
+Os links Termos de Uso e Privacidade das telas de acesso ficam pequenos, sem contorno, junto da frase de contato da coordenação. O rodapé separado foi removido dessas telas. Abertura do documento conferida no navegador; TypeScript e build passaram. Evidência: acesso-termos-discretos.png.
