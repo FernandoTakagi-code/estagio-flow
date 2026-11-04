@@ -1,8 +1,14 @@
 import { startTestDatabase } from './database.js';
+import { randomBytes } from 'node:crypto';
 import type { Actor } from '../../src/auth/service.js';
 
 // This helper always starts its own in-memory PostgreSQL before importing the app.
 const context = await startTestDatabase(55443);
+process.env.EMAIL_MODE = 'capture';
+process.env.EMAIL_ENCRYPTION_KEY = randomBytes(32).toString('hex');
+process.env.PUBLIC_APP_URL = 'http://127.0.0.1:5173';
+process.env.DEMO_EMAIL_INBOX = 'true';
+process.env.LEGAL_DEMO_MODE = 'true';
 if (new URL(process.env.DATABASE_URL!).hostname !== '127.0.0.1') throw new Error('Somente banco temporário local.');
 const db = context.prisma;
 const institution = await db.instituicao.create({ data: { nome: 'Escola Fictícia' } });
@@ -41,6 +47,8 @@ const agenda = await import('../../src/agenda/service.js');
 await agenda.create(coordinator as Actor, { estagioId: first.estagioId, data: '2026-11-02', horaInicio: '07:00', horaFim: '13:00' });
 await agenda.create(coordinator as Actor, { estagioId: first.estagioId, data: '2026-11-04', horaInicio: '07:00', horaFim: '13:00' });
 const server = context.createApp().listen(3101, '127.0.0.1', () => console.log('API de teste local: http://127.0.0.1:3101. Dados fictícios em memória; Supabase não é utilizado.'));
-async function shutdown() { server.close(); await db.$disconnect(); await context.socket.stop(); await context.database.close(); process.exit(0); }
+const { startEmailWorker } = await import('../../src/email/service.js');
+const stopEmails = startEmailWorker(500);
+async function shutdown() { stopEmails(); server.close(); await db.$disconnect(); await context.socket.stop(); await context.database.close(); process.exit(0); }
 process.on('SIGINT', () => void shutdown());
 process.on('SIGTERM', () => void shutdown());

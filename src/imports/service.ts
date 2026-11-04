@@ -7,6 +7,7 @@ import * as repository from './repository.js';
 import { HttpError } from '../lib/errors.js';
 import { createUserSchema } from '../auth/schemas.js';
 import { prepareInvite, type Actor } from '../auth/service.js';
+import { queueAccessEmail } from '../email/service.js';
 
 const maxRows = 100;
 const maxBytes = 64 * 1024;
@@ -88,9 +89,14 @@ export async function confirmImport(actor: Actor, id: string) {
       const invitations = users.map((user) => prepareInvite(user.id, actor.id));
       await repository.insertStudents(tx, users);
       await repository.insertInvitations(tx, invitations.map((invite) => invite.data));
+      const deliveries: Awaited<ReturnType<typeof queueAccessEmail>>[] = [];
+      for (let index = 0; index < users.length; index++) {
+        const invite = invitations[index]!.publico;
+        deliveries.push(await queueAccessEmail(tx, users[index]!, 'convite', invite.token, invite.expiraEm));
+      }
       return {
         importacaoId: id, quantidade: users.length,
-        alunos: users.map((user, index) => ({ id: user.id, nome: user.nome, email: user.email, perfil: user.perfil, convite: invitations[index]!.publico })),
+        alunos: users.map((user, index) => ({ id: user.id, nome: user.nome, email: user.email, perfil: user.perfil, convite: { ...invitations[index]!.publico, email: deliveries[index] } })),
       };
     }, { timeout: 15_000 });
   } catch (error) {

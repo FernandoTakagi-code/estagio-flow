@@ -1,0 +1,28 @@
+import { useEffect, useState } from 'react';
+import { api } from './lib/api';
+import { errorMessage } from './lib/utils';
+import { Button } from './components/ui/button';
+import { Modal } from './components/ui/modal';
+import { Brand } from './components/brand';
+import './legal.css';
+export interface LegalDocuments { exigido: boolean; demonstracao: boolean; estado: string; controlador: string | null; contato: string | null; documentos: { tipo: 'termos' | 'privacidade'; titulo: string; texto: string; versao: string; hash: string }[] }
+export interface Acknowledgement { aceitoTermos: boolean; cienciaPrivacidade: boolean; termosHash: string; privacidadeHash: string }
+export const acknowledgement = (documents: LegalDocuments, checked: { terms: boolean; privacy: boolean }): Acknowledgement => ({ aceitoTermos: checked.terms, cienciaPrivacidade: checked.privacy, termosHash: documents.documentos.find((doc) => doc.tipo === 'termos')!.hash, privacidadeHash: documents.documentos.find((doc) => doc.tipo === 'privacidade')!.hash });
+export function useLegalDocuments() {
+  const [documents, setDocuments] = useState<LegalDocuments | null>(null); const [error, setError] = useState(''); const [revision, setRevision] = useState(0);
+  useEffect(() => { const controller = new AbortController(); void api<LegalDocuments>('/legal/documentos', { signal: controller.signal }).then(setDocuments).catch((cause: unknown) => { if (!controller.signal.aborted) setError(errorMessage(cause)); }); return () => controller.abort(); }, [revision]);
+  return { documents, error, reload: () => { setError(''); setDocuments(null); setRevision((old) => old + 1); } };
+}
+export function LegalChoices({ documents, checked, onChange, disabled = false }: { documents: LegalDocuments; checked: { terms: boolean; privacy: boolean }; onChange: (value: { terms: boolean; privacy: boolean }) => void; disabled?: boolean }) {
+  return <div className="legal-choices">{documents.demonstracao && <p className="field-hint">Simulação com documentos fictícios, sem efeito contratual.</p>}<LegalLinks documents={documents} /><label><input type="checkbox" checked={checked.terms} required disabled={disabled} onChange={(event) => onChange({ ...checked, terms: event.target.checked })} /><span>Li e aceito os Termos de Uso{documents.demonstracao && ' de demonstração'}.</span></label><label><input type="checkbox" checked={checked.privacy} required disabled={disabled} onChange={(event) => onChange({ ...checked, privacy: event.target.checked })} /><span>Li e estou ciente do Aviso de Privacidade{documents.demonstracao && ' de demonstração'}.</span></label></div>;
+}
+export function LegalLinks({ documents, compact = false }: { documents: LegalDocuments; compact?: boolean }) {
+  const [selected, setSelected] = useState<'termos' | 'privacidade' | null>(null);
+  const doc = documents.documentos.find((item) => item.tipo === selected);
+  return <><div className={compact ? "legal-links legal-links-compact" : "legal-links"}><Button variant={compact ? "ghost" : "outline"} size="small" onClick={() => setSelected('termos')}>Termos de Uso</Button><Button variant={compact ? "ghost" : "outline"} size="small" onClick={() => setSelected('privacidade')}>{compact ? 'Privacidade' : 'Aviso de Privacidade'}</Button></div>{doc && <Modal title={doc.titulo} description={`Versão ${doc.versao}${documents.estado === 'rascunho' ? ' · Em revisão institucional' : ''}`} onClose={() => setSelected(null)}>{documents.demonstracao && <p className="notice">Documento fictício para testar a interface.</p>}{documents.controlador && <p className="muted">Responsável: {documents.controlador}</p>}{documents.contato && <p className="muted">Contato: {documents.contato}</p>}<div className="legal-document">{doc.texto}</div><Button onClick={() => setSelected(null)}>Voltar</Button></Modal>}</>;
+}
+export function LegalFooter() { const { documents } = useLegalDocuments(); return documents ? <footer className="legal-footer content-width"><LegalLinks documents={documents} /></footer> : null; }
+export function LegalGate({ onAccepted, onLogout }: { onAccepted: () => void; onLogout: () => Promise<void> }) {
+  const { documents, error: loadError, reload } = useLegalDocuments(); const [checked, setChecked] = useState({ terms: false, privacy: false }); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
+  return <div className="app-shell"><header className="legal-gate-header content-width"><Brand /><Button variant="outline" onClick={() => void onLogout()}>Sair</Button></header><main className="legal-gate"><h1>Uso e privacidade</h1><p>Confira os documentos vigentes antes de continuar. A ciência do aviso não é uma autorização genérica para usar seus dados.</p>{(error || loadError) && <p className="form-error" role="alert">{error || loadError}<Button variant="outline" onClick={() => { setChecked({ terms: false, privacy: false }); reload(); }}>Atualizar documentos</Button></p>}{!documents ? <p role="status">Carregando documentos…</p> : <form onSubmit={async (event) => { event.preventDefault(); setBusy(true); setError(''); try { await api('/legal/aceites', { method: 'POST', body: acknowledgement(documents, checked) }); onAccepted(); } catch (cause) { setError(errorMessage(cause)); } finally { setBusy(false); } }}><LegalChoices documents={documents} checked={checked} onChange={setChecked} disabled={busy} /><Button type="submit" disabled={busy || !checked.terms || !checked.privacy}>{busy ? 'Registrando…' : documents.demonstracao ? 'Continuar na demonstração' : 'Registrar e continuar'}</Button></form>}</main></div>;
+}

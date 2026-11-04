@@ -1,4 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { queueAccessEmail } from '../email/service.js';
+import { validateAcknowledgement, recordAcknowledgement, type Acknowledgement } from '../legal/service.js';
 import { transaction } from '../lib/transaction.js';
 import * as repository from './repository.js';
 import type { Actor } from './user-select.js';
@@ -43,7 +45,8 @@ export async function createUser(actor: Actor, data: z.infer<typeof createUserSc
   return transaction(async (tx) => {
     const usuario = await repository.insertUser(tx, { ...data, instituicaoId: actor.instituicaoId, criadoPorId: actor.id });
     const convite = await addInvite(tx, usuario.id, actor.id);
-    return { usuario, convite };
+    const email = await queueAccessEmail(tx, usuario, 'convite', convite.token, convite.expiraEm);
+    return { usuario, convite: { ...convite, email } };
   });
 }
 
@@ -53,11 +56,14 @@ export async function reissueInvite(actor: Actor, id: string) {
     const pending = await repository.lockPendingUser(tx, actor.instituicaoId, id);
     if (pending.count !== 1) throw new HttpError(404, 'Usuário pendente não encontrado.');
     await repository.revokeInvites(tx, id);
-    return addInvite(tx, id, actor.id);
+    const convite = await addInvite(tx, id, actor.id);
+    const usuario = await repository.findPublicUser(tx, id);
+    return { ...convite, email: await queueAccessEmail(tx, usuario, 'convite', convite.token, convite.expiraEm) };
   });
 }
 
-export async function acceptInvite(token: string, password: string) {
+export async function acceptInvite(token: string, password: string, acknowledgement?: Acknowledgement) {
+  const documents = validateAcknowledgement(acknowledgement);
   const tokenHash = digest(token);
   const invite = await repository.findInvite(tokenHash);
   if (!invite || invite.usadoEm || invite.revogadoEm || invite.expiraEm <= new Date()) throw invalidInvite();
@@ -70,6 +76,7 @@ export async function acceptInvite(token: string, password: string) {
     const consumed = await repository.consumeInvite(tx, invite.id, tokenHash);
     if (consumed.count !== 1) throw invalidInvite();
     await repository.revokeInvites(tx, invite.usuarioId);
+    await recordAcknowledgement(tx, invite.usuarioId, 'convite', documents);
   });
 }
 

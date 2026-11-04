@@ -3,6 +3,8 @@ export class ApiError extends Error {
 }
 let token: string | null = null;
 let onExpired: (() => void) | undefined;
+let onLegalRequired: (() => void) | undefined;
+export const setLegalRequiredHandler = (handler: () => void) => { onLegalRequired = handler; };
 export const setSession = (value: string | null, handler?: () => void) => { token = value; onExpired = handler; };
 
 export async function api<T>(path: string, options: { method?: string; body?: unknown; csv?: string; signal?: AbortSignal } = {}): Promise<T> {
@@ -20,6 +22,7 @@ export async function api<T>(path: string, options: { method?: string; body?: un
   if (!response.ok) {
     const data = await response.json().catch(() => ({})) as { erro?: string; campos?: { mensagem: string }[] };
     if (response.status === 401 && token) { token = null; onExpired?.(); }
+    if (response.status === 428 && token) onLegalRequired?.();
     throw new ApiError(response.status, data.campos?.[0]?.mensagem ?? data.erro ?? 'Não foi possível concluir a operação. Tente novamente.');
   }
   return response.status === 204 ? undefined as T : response.json() as Promise<T>;

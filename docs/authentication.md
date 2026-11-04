@@ -87,7 +87,7 @@ O último comando HTTP mostra os dados públicos da conta; a senha não aparece 
 
 ## Limitações e próximas etapas
 
-- Ainda não há envio automático de e-mail, recuperação de senha, MFA, refresh token ou frontend. Ao expirar o token, faça login novamente. Isso precisa ser resolvido conforme os requisitos antes de produção.
+- Envio de e-mail e recuperação estão preparados, com configuração descrita em [e-mails e privacidade](email-privacy.md). Ainda não há MFA nem refresh token. Ao expirar o token, faça login novamente. O frontend já está disponível.
 - A [importação de alunos por CSV](student-import.md) usa prévia, validação e confirmação, sempre com perfil de aluno.
 - `criadoPorId` e os convites registram quem iniciou o cadastro. Ainda não há uma trilha completa de auditoria de todas as alterações de acesso.
 - Os [cadastros acadêmicos](academic.md) restringem as consultas da professora aos seus grupos e as do aluno aos próprios vínculos. As próximas rotas de frequência e aprovação também precisarão aplicar esses filtros.

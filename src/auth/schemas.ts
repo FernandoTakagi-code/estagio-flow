@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { acknowledgementSchema } from '../legal/service.js';
 
 export const emailSchema = z.string().trim().toLowerCase().max(254).pipe(z.email());
 export const passwordSchema = z.string().min(12).max(128);
@@ -11,6 +12,7 @@ export const loginSchema = z.strictObject({
 export const acceptInviteSchema = z.strictObject({
   token: z.string().regex(/^[a-f0-9]{64}$/),
   senha: passwordSchema,
+  documentos: acknowledgementSchema.optional(),
 });
 
 export const createUserSchema = z.strictObject({

@@ -59,6 +59,9 @@ model Usuario {
   sessoesCriadas AgendaSessao[]
   frequenciasLancadas FrequenciaSessao[]
   eventosAgenda EventoAgenda[]
+  recuperacoes RecuperacaoSenha[]
+  mensagensEmail MensagemEmail[]
+  registrosLegais RegistroLegal[]
 
   @@unique([id, instituicaoId])
   @@index([instituicaoId])
@@ -320,6 +323,51 @@ model EventoAgenda {
   autor Usuario @relation(fields: [autorId, instituicaoId], references: [id, instituicaoId], onDelete: Restrict)
   @@index([sessaoId, criadoEm])
   @@map("evento_agenda")
+}
+
+model RecuperacaoSenha {
+  id String @id @default(uuid()) @db.Uuid
+  usuarioId String @map("usuario_id") @db.Uuid
+  tokenHash String @unique @map("token_hash") @db.VarChar(64)
+  expiraEm DateTime @map("expira_em") @db.Timestamptz(3)
+  criadoEm DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  usadoEm DateTime? @map("usado_em") @db.Timestamptz(3)
+  revogadoEm DateTime? @map("revogado_em") @db.Timestamptz(3)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  @@index([usuarioId, criadoEm])
+  @@map("recuperacao_senha")
+}
+
+model MensagemEmail {
+  id String @id @db.Uuid
+  usuarioId String @map("usuario_id") @db.Uuid
+  tipo String @db.VarChar(20)
+  referenciaHash String @map("referencia_hash") @db.VarChar(64)
+  conteudoCifrado String? @map("conteudo_cifrado") @db.Text
+  estado String @default("pendente") @db.VarChar(20)
+  tentativas Int @default(0)
+  criadoEm DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  disponivelEm DateTime @default(now()) @map("disponivel_em") @db.Timestamptz(3)
+  travaEm DateTime? @map("trava_em") @db.Timestamptz(3)
+  expiraEm DateTime @map("expira_em") @db.Timestamptz(3)
+  codigoErro String? @map("codigo_erro") @db.VarChar(40)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  @@index([estado, disponivelEm])
+  @@map("mensagem_email")
+}
+
+model RegistroLegal {
+  id String @id @default(uuid()) @db.Uuid
+  usuarioId String @map("usuario_id") @db.Uuid
+  tipo String @db.VarChar(20)
+  versao String @db.VarChar(100)
+  hashDocumento String @map("hash_documento") @db.VarChar(64)
+  snapshot Json
+  origem String @db.VarChar(20)
+  registradoEm DateTime @default(now()) @map("registrado_em") @db.Timestamptz(3)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  @@unique([usuarioId, tipo, hashDocumento])
+  @@map("registro_legal")
 }
 
 model EventoRegistro {
