@@ -45,12 +45,16 @@ Essa prévia cria um banco em memória na porta 55443 e uma API na 3101, com qua
 
 Para voltar à API real, encerre o Vite, execute `Remove-Item Env:API_PROXY_TARGET -ErrorAction SilentlyContinue` nesse terminal e inicie `npm run web:dev` novamente. Confira também o valor em `web/.env.local`.
 
+## Padrão das ações de acesso
+
+Login, convite e recuperação mantêm uma única ação primária verde preenchida. Esqueci minha senha, Recebi um convite e Voltar para o login são ações textuais com o componente Button ghost, sem borda, fundo ou caixa de largura total. Agrupar com espaçamento explícito de 8px e área clicável mínima de 44px. E-mails de demonstração é uma ação auxiliar menor e discreta, separada das ações reais do usuário. Não voltar a usar Button outline nessas ações de navegação; o contorno permanece disponível para outros contextos em que foi aprovado.
+
 ## Fluxos disponíveis
 
 - Aluno: acompanhar horas e disciplinas, consultar fichas, criar rascunho, enviar, corrigir devoluções e cancelar rascunhos ou devoluções. Alterações precisam ser salvas antes do envio.
 - Em Disciplinas → Ver todas, o aluno consulta a carga do currículo completo, as horas de disciplinas com vínculo e os valores aprovados, enviados, restantes e excedentes por disciplina. Disciplinas ainda sem vínculo aparecem com zero horas cumpridas.
 - Professora: filtrar registros e fichas, aprovar de um a cinco registros da mesma ficha, devolver e reabrir com motivo. O histórico e as aprovações anteriores permanecem consultáveis.
-- Login: mensagens de erro, mostrar senha, aceitar convite e expiração da sessão. A recuperação de senha ainda depende de integração futura.
+- Login: mensagens de erro, mostrar senha, aceitar convite e expiração da sessão. Recuperação disponível quando o e-mail estiver configurado; a prévia usa captura local. Consulte [e-mails e documentos](email-privacy.md).
 - Coordenação: cadastrar pessoas e emitir convites, matricular e transferir alunos, organizar turmas, disciplinas, locais e grupos, encerrar vínculos e importar alunos com prévia do CSV.
 - Cronograma: coordenação e professora organizam sessões; a professora marca Presente/Falta na lista e salva a chamada de uma vez. O aluno registra as atividades após presença confirmada. Veja [cronograma e frequência](schedule.md).
 - Celular: navegação, lista de registros e formulários adaptados, com suporte a teclado e redução de movimento.

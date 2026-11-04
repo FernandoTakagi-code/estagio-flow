@@ -7,6 +7,6 @@ export interface Field { id: string; nome: string }
 export interface Enrollment { id: string; alunoId: string; turmaId: string; iniciadoEm: string; encerradoEm?: string | null; turma: SchoolClass }
 export interface Group { id: string; codigo: string; encerradoEm: string | null; turma: SchoolClass; disciplina: Discipline; campoEstagio: Field; professora: Person }
 export interface Member { id: string; iniciadoEm: string; encerradoEm: string | null; matricula: { aluno: { id: string; nome: string; ativo: boolean } } }
-export interface Invite { token: string; expiraEm: string }
+export interface Invite { token: string; expiraEm: string; email?: { estado: 'na_fila' | 'manual' } }
 export interface Invitation { nome: string; email: string; convite: Invite }
 export interface Registry { classes: SchoolClass[]; disciplines: Discipline[]; fields: Field[]; groups: Group[] }

@@ -1,0 +1,15 @@
+{
+  "revisadoPelaInstituicao": false,
+  "controlador": "PREENCHER COM A IDENTIFICAÇÃO INSTITUCIONAL APROVADA",
+  "contato": "privacidade@example.test",
+  "termos": {
+    "versao": "rascunho-1",
+    "titulo": "Termos de Uso — rascunho para revisão",
+    "texto": "RASCUNHO. Substituir pelo texto aprovado pela instituição, incluindo finalidade do sistema, público, responsabilidades de uso, proteção de credenciais, veracidade dos registros, proibição de dados de pacientes, canais de atendimento e procedimento de correção. Não publicar este exemplo como documento institucional."
+  },
+  "privacidade": {
+    "versao": "rascunho-1",
+    "titulo": "Aviso de Privacidade — rascunho para revisão",
+    "texto": "RASCUNHO. Substituir pelo aviso aprovado pela instituição, identificando controlador e contato, categorias de dados, finalidades e bases legais adequadas, destinatários, fornecedores, transferências internacionais, critérios e prazos de retenção, direitos e formas de exercê-los, segurança, incidentes e atendimento a menores quando aplicável. A ciência do aviso não representa consentimento genérico para qualquer uso de dados."
+  }
+}

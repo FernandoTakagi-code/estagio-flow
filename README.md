@@ -44,7 +44,7 @@ Veja [autenticação e cadastro de usuários](docs/authentication.md) para os en
 
 ## Importar alunos
 
-A coordenação pode enviar um CSV com nome e e-mail, revisar erros e confirmar a criação das contas e convites. Consulte [importação por CSV](docs/student-import.md) e o [exemplo fictício](examples/alunos.csv). A matrícula em turma é feita pelas rotas acadêmicas; o envio automático de e-mail ainda está pendente.
+A coordenação pode enviar um CSV com nome e e-mail, revisar erros e confirmar a criação das contas e convites. Consulte [importação por CSV](docs/student-import.md) e o [exemplo fictício](examples/alunos.csv). A matrícula em turma é feita pelas rotas acadêmicas; o envio automático depende da [configuração de e-mail](docs/email-privacy.md).
 
 ## Cadastros acadêmicos
 
@@ -54,7 +54,7 @@ A coordenação pode cadastrar turmas, disciplinas e locais, matricular alunos e
 
 O aluno registra datas, horários e atividades na ficha do próprio vínculo. A API calcula a duração, impede horários sobrepostos e controla rascunho, envio, devolução com motivo e cancelamento. Cada alteração preserva um histórico. Consulte [registros e teste manual](docs/attendance.md).
 
-A professora aprova de um a cinco registros da mesma ficha por vez e pode reabrir um aprovado com motivo, preservando sua aprovação anterior. A API soma as horas aprovadas por aluno e disciplina, incluindo vínculos históricos. Consulte [aprovação, reabertura e totais](docs/approvals.md). Fechamento definitivo e relatórios continuam pendentes; o próximo bloco planejado é o frontend.
+A professora aprova de um a cinco registros da mesma ficha por vez e pode reabrir um aprovado com motivo, preservando sua aprovação anterior. A API soma as horas aprovadas por aluno e disciplina, incluindo vínculos históricos. Consulte [aprovação, reabertura e totais](docs/approvals.md). Fechamento definitivo e relatórios continuam pendentes; frontend e painel da coordenação já estão disponíveis.
 
 ## Verificação e migrations
 
@@ -100,10 +100,10 @@ A interface React fica em `web/`, com login, convite, registros do aluno e revis
 
 ## Próximas etapas
 
-- Integração de envio de convites por e-mail e recuperação de senha.
-- Envio automático de convites e melhorias para gestão de grandes turmas.
+- Configurar domínio e Resend para ativar convites por e-mail e recuperação de senha.
+- Revisar os documentos de uso e privacidade com a instituição; veja [e-mails e documentos](docs/email-privacy.md).
 - Fechamento definitivo das fichas com RT/COREN.
-- Painel da coordenação e relatórios.
+- Relatórios e exportação em PDF.
 - Ampliação dos testes, CI e documentação OpenAPI.
 - Avaliação acadêmica e fechamento definitivo de fichas.
 

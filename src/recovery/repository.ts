@@ -1,0 +1,11 @@
+import { prisma } from '../lib/prisma.js';
+import type { Transaction } from '../lib/transaction.js';
+import type { Prisma } from '../generated/prisma/client.js';
+export const findUser = (email: string) => prisma.usuario.findUnique({ where: { email }, select: { id: true } });
+export const lock = async (tx: Transaction, id: string) => { await tx.$queryRaw`SELECT id FROM usuario WHERE id = ${id}::uuid FOR UPDATE`; return tx.usuario.findUnique({ where: { id }, select: { id: true, email: true, ativo: true, senhaHash: true } }); };
+export const recent = (tx: Transaction, usuarioId: string) => tx.recuperacaoSenha.findFirst({ where: { usuarioId, criadoEm: { gt: new Date(Date.now() - 60_000) } } });
+export const revoke = (tx: Transaction, usuarioId: string) => tx.recuperacaoSenha.updateMany({ where: { usuarioId, usadoEm: null, revogadoEm: null }, data: { revogadoEm: new Date() } });
+export const insert = (tx: Transaction, data: Prisma.RecuperacaoSenhaUncheckedCreateInput) => tx.recuperacaoSenha.create({ data });
+export const find = (tokenHash: string) => prisma.recuperacaoSenha.findUnique({ where: { tokenHash } });
+export const consume = (tx: Transaction, id: string) => tx.recuperacaoSenha.updateMany({ where: { id, usadoEm: null, revogadoEm: null, expiraEm: { gt: new Date() } }, data: { usadoEm: new Date() } });
+export const password = (tx: Transaction, id: string, senhaHash: string) => tx.usuario.update({ where: { id }, data: { senhaHash, tokenVersao: { increment: 1 } } });

@@ -1,4 +1,9 @@
 import express, { type ErrorRequestHandler } from 'express';
+import * as recovery from './recovery/controller.js';
+import * as legal from './legal/controller.js';
+import { legalConfig } from './legal/config.js';
+import { emailConfig } from './email/config.js';
+import { captureInbox } from './email/service.js';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { createHash } from 'node:crypto';
@@ -16,6 +21,8 @@ import { createAgendaRouter } from './agenda/routes.js';
 import { createRecordsRouter } from './registros/routes.js';
 
 export function createApp() {
+  legalConfig();
+  const mailConfig = emailConfig();
   const tokens = createTokenService(process.env.JWT_SECRET);
   const app = express();
   app.disable('x-powered-by');
@@ -41,10 +48,20 @@ export function createApp() {
   const authentication = createAuthController(tokens);
   app.post('/auth/login', ipLimiter(), loginAccountLimiter, authentication.login);
   app.post('/auth/convites/aceitar', ipLimiter(), authentication.accept);
+  const recoveryLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false, message: limitMessage, keyGenerator: (req) => createHash('sha256').update(typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '').digest('hex') });
+  app.get('/auth/opcoes', (_req, res) => { res.json({ recuperacaoDisponivel: mailConfig.mode !== 'disabled', caixaDemonstracao: mailConfig.mode === 'capture' && process.env.DEMO_EMAIL_INBOX === 'true' }); });
+  app.post('/auth/recuperacao', ipLimiter(), recoveryLimiter, recovery.requestRecovery);
+  app.post('/auth/recuperacao/redefinir', ipLimiter(), recovery.reset);
+  if (mailConfig.mode === 'capture' && process.env.DEMO_EMAIL_INBOX === 'true') app.get('/auth/demo-emails', (_req, res) => { res.json({ mensagens: captureInbox() }); });
   app.get('/auth/me', auth, authentication.me);
   app.post('/auth/logout', auth, authentication.logout);
+  app.use('/legal', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+  app.get('/legal/documentos', legal.documents);
+  app.get('/legal/status', auth, legal.status);
+  app.get('/legal/meus-registros', auth, legal.receipts);
+  app.post('/legal/aceites', auth, legal.acknowledge);
 
-  app.use('/usuarios', auth, requireCoordinator, (_req, res, next) => {
+  app.use('/usuarios', auth, legal.requireAcknowledgement, requireCoordinator, (_req, res, next) => {
     res.setHeader('Cache-Control', 'no-store'); next();
   });
   const importLimiter = rateLimit({
@@ -60,9 +77,9 @@ export function createApp() {
   app.post('/usuarios/:id/convite', users.reissue);
   app.patch('/usuarios/:id/ativo', users.active);
 
-  app.use('/academico', auth, (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); }, createAcademicRouter());
-  app.use('/frequencia', auth, (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); }, createRecordsRouter());
-  app.use('/agenda', auth, (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); }, createAgendaRouter());
+  app.use('/academico', auth, legal.requireAcknowledgement, (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); }, createAcademicRouter());
+  app.use('/frequencia', auth, legal.requireAcknowledgement, (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); }, createRecordsRouter());
+  app.use('/agenda', auth, legal.requireAcknowledgement, (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); }, createAgendaRouter());
 
   app.use((_req, res) => { res.status(404).json({ erro: 'Rota não encontrada.' }); });
   const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, _next) => {
