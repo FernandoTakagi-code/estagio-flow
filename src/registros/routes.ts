@@ -1,9 +1,13 @@
 import { Router } from 'express';
 import * as controller from './controller.js';
+import * as assessment from '../avaliacao/controller.js';
 
 export function createRecordsRouter() {
   const router = Router();
   router.get('/painel', controller.panel);
+  router.get('/acompanhamento', assessment.monitoring);
+  router.get('/fichas/:id/avaliacao', assessment.read);
+  router.post('/fichas/:id/avaliacao', assessment.publish);
   router.post('/registros/aprovar', controller.approve);
   router.post('/registros/:id/reabrir', controller.reopen);
   router.get('/registros/:id/aprovacoes', controller.approvals);

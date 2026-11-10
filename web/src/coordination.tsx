@@ -14,10 +14,11 @@ import { ImportStudents } from './coordination/import-students';
 import type { Discipline, Field, Group, Person, Registry, SchoolClass } from './coordination/types';
 import './coordination/styles.css';
 import { Agenda } from './agenda';
+import { Monitoring } from './coordination/monitoring';
 
-type View = 'people' | 'catalogs' | 'groups' | 'records' | 'agenda';
+type View = 'people' | 'catalogs' | 'groups' | 'records' | 'agenda' | 'monitoring';
 type Dialog = { kind: 'person'; person: Person } | { kind: 'group'; group: Group } | { kind: 'catalog'; catalog: Catalog } | { kind: 'newPerson' | 'newGroup' | 'import' };
-const titles: Record<View, string> = { people: 'Pessoas', catalogs: 'Turmas e locais', groups: 'Grupos', records: 'Registros', agenda: 'Cronograma' };
+const titles: Record<View, string> = { people: 'Pessoas', catalogs: 'Turmas e locais', groups: 'Grupos', records: 'Registros', agenda: 'Cronograma', monitoring: 'Acompanhamento' };
 const empty: Registry = { classes: [], disciplines: [], fields: [], groups: [] };
 export function Coordination({ user, onLogout }: { user: User; onLogout: () => Promise<void> }) {
   const [view, setView] = useState<View>('people');
@@ -38,6 +39,7 @@ export function Coordination({ user, onLogout }: { user: User; onLogout: () => P
     return () => controller.abort();
   }, [revision]);
   const close = () => setDialog(null);
+  if (view === 'monitoring') return <Monitoring user={user} onBack={() => setView('people')} />;
   if (view === 'agenda') return <Agenda user={user} onBack={() => setView('people')} />;
   if (view === 'records') return <Dashboard user={user} onLogout={onLogout} onBack={() => setView('people')} />;
   return <div className="app-shell"><a href="#coord-workspace" className="skip-link">Ir para o conteúdo</a><section className="hero hero-compact coord-hero"><header className="site-header content-width"><Brand /><nav aria-label="Navegação principal">{(Object.keys(titles) as View[]).map((item) => <button key={item} aria-current={item === view ? 'page' : undefined} onClick={() => { setView(item); }}>{titles[item]}</button>)}</nav><div className="header-user"><span className="avatar" title={user.nome}>{user.nome.split(' ').filter(Boolean).map((part) => part[0]).slice(0, 2).join('')}</span><Button variant="ghost" size="icon" aria-label="Sair" onClick={async () => { try { await onLogout(); } catch { /* The local session is cleared by the parent. */ } }}><LogOut size={19} /></Button></div></header><div className="hero-content content-width"><div className="hero-intro"><h1>{titles[view]}</h1><p className="hero-date">{view === 'people' ? 'Alunos e professoras, organizados em um só lugar.' : view === 'catalogs' ? 'A base para organizar cada estágio.' : 'Turma, disciplina, local e professora responsável.'}</p><div className="hero-actions">{view === 'people' ? <><Button variant="light" disabled={loading || Boolean(error)} onClick={() => setDialog({ kind: 'newPerson' })}><Plus size={20} />Cadastrar pessoa</Button><Button variant="ghost" onClick={() => setDialog({ kind: 'import' })} disabled={loading || Boolean(error)}><Upload size={18} />Importar alunos</Button></> : view === 'groups' ? <Button variant="light" disabled={loading || Boolean(error)} onClick={() => setDialog({ kind: 'newGroup' })}><Plus size={20} />Novo grupo</Button> : <Button variant="light" onClick={() => setDialog({ kind: 'catalog', catalog: 'classes' })} disabled={loading || Boolean(error)}><Plus size={20} />Nova turma</Button>}</div></div></div></section>

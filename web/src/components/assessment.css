@@ -1,0 +1,14 @@
+.assessment { margin-top: 28px; border-top: 1px solid var(--border); padding-top: 20px; }
+.assessment > p { margin-block: 12px; }
+.assessment fieldset { border: 0; padding: 0; min-width: 0; }
+.assessment legend { font-weight: 600; padding-block: 12px; }
+.assessment .assessment-grade { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 16px; margin-block: 12px; line-height: 1.5; }
+.assessment-grade input { width: 85px; flex-shrink: 0; }
+.assessment .assessment-confirm { display: flex; flex-direction: row; align-items: flex-start; gap: 12px; margin-block: 18px; }
+.assessment-confirm input[type=checkbox] { width: 18px; min-width: 18px; height: 18px; padding: 0; margin-top: 2px; }
+.assessment li { margin: 8px 0 8px 20px; line-height: 1.6; }
+.assessment details { margin-top: 20px; }
+.assessment article { padding-block: 12px; border-bottom: 1px solid var(--border); }
+.monitoring-row { border-bottom: 1px solid var(--border); padding-block: 20px; line-height: 1.8; }
+.monitoring-row p { overflow-wrap: anywhere; }
+.monitoring h1 { font-size: clamp(24px, 4vw, 32px); line-height: 1.25; font-weight: 600; margin-block: 20px 12px; }

@@ -100,12 +100,14 @@ A interface React fica em `web/`, com login, convite, registros do aluno e revis
 
 ## Próximas etapas
 
+A [avaliação digital e o acompanhamento](docs/assessment.md) estão disponíveis no MVP, com regras provisórias por vínculo e correções versionadas. Use o [roteiro de demonstração completa](docs/demo-complete.md) para testar com dados fictícios antes de configurar o Supabase.
+
 - Configurar domínio e Resend para ativar convites por e-mail e recuperação de senha.
 - Revisar os documentos de uso e privacidade com a instituição; veja [e-mails e documentos](docs/email-privacy.md).
 - Confirmar a regra de fechamento por vínculo e o tratamento de correções com a instituição.
 - Relatórios e exportação em PDF.
 - Ampliação dos testes e documentação OpenAPI. GitHub Actions verifica schema, tipos, testes e builds sem acesso ao Supabase.
-- Avaliação acadêmica e consolidação da conclusão por disciplina.
+- Confirmar metodologia da avaliação e consolidação da conclusão por disciplina.
 
 ## Licença
 
