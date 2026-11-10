@@ -28,7 +28,7 @@ Perguntar:
 6. Quando o aluno pode consultar as notas? Como se corrigem notas já registradas?
 7. A avaliação depende de completar toda a carga horária? Qual é a regra quando a média fica abaixo do mínimo?
 
-Estado em 03/11/2026: implementação experimental na branch feat/avaliacao-aluno, sem commit nem merge. A migration da avaliação não foi aplicada ao Supabase. Ao retomar essa funcionalidade, lembrar o usuário destas perguntas e ajustar a implementação às respostas antes de finalizar.
+Histórico em 03/11/2026: existia implementação experimental sem commit em feat/avaliacao-aluno, não recuperada. Em 10/11/2026 foi implementada a [avaliação para demonstração do MVP](assessment.md), com regras provisórias documentadas, após autorização para avançar antes da consulta à instituição. As perguntas acima permanecem abertas para o piloto real. A nova migration é independente do experimento antigo e não foi aplicada ao Supabase nesta implementação.
 
 ## Faltas e carga horária
 

@@ -5,6 +5,7 @@ import { dateLabel, errorMessage, hours } from '../lib/utils';
 import { Modal } from './ui/modal';
 import { Button } from './ui/button';
 import './sheet-detail.css';
+import { Assessment } from './assessment';
 
 interface Summary {
   id: string; aluno: { nome: string }; disciplina: { nome: string; cargaHorariaTotal: number };
@@ -37,7 +38,7 @@ export function SheetDetail({ id, user, onClose, onChanged }: { id: string; user
       setError(errorMessage(cause));
     } finally { setBusy(false); }
   }
-  return <Modal title="Fechamento da ficha" description="Consulte as horas e o fechamento deste vínculo de estágio." onClose={() => { if (!busy) onClose(); }}>
+  return <Modal title="Ficha de estágio" description="Consulte horas, avaliação e fechamento deste vínculo." onClose={() => { if (!busy) onClose(); }}>
     {error && <p role="alert" className="form-error">{error}<Button variant="ghost" disabled={busy} onClick={() => { setError(''); void load().catch((cause: unknown) => setError(errorMessage(cause))); }}>Atualizar resumo</Button></p>}
     {notice && <p role="status" className="notice">{notice}</p>}
     {!sheet ? <p role="status">Carregando ficha…</p> : <>
@@ -57,6 +58,7 @@ export function SheetDetail({ id, user, onClose, onChanged }: { id: string; user
           <Button disabled={busy || !confirmed || !user.coren || sheet.pendentes > 0 || sheet.totalMinutos === 0} onClick={() => void closeSheet()}>{busy ? 'Fechando…' : 'Fechar ficha definitivamente'}</Button>
         </div>}
       </>}
+      <Assessment id={id} user={user} onChanged={onChanged} />
     </>}
   </Modal>;
 }

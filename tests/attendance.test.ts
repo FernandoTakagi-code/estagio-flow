@@ -378,6 +378,101 @@ async function submitted(overrides: Record<string, unknown> = {}) {
 }
 const approve = (records: { id: string; versao: number }[], bearer = teacherToken) => post('/registros/aprovar', { registros: records.map(({ id, versao }) => ({ id, versao })) }, bearer);
 
+describe('avaliação digital e acompanhamento do MVP', () => {
+  const read = (id: string, bearer = teacherToken) => get(`/fichas/${id}/avaliacao`, bearer);
+  const publish = (id: string, input: object = {}, bearer = teacherToken) => post(`/fichas/${id}/avaliacao`, { notas: Array(9).fill('7.00'), versaoAnterior: 0, confirmar: true, ...input }, bearer);
+  async function prepare() {
+    await context.prisma.usuario.updateMany({ where: { email: 'prof@example.test' }, data: { coren: 'COREN-FICTICIO' } });
+    return create();
+  }
+  it('publica nove notas Decimal, média e autoria para aluno e coordenação', async () => {
+    const record = await prepare();
+    expect((await read(record.fichaId)).body.vigente).toBeNull();
+    const result = await publish(record.fichaId);
+    expect(result.status).toBe(201);
+    expect(result.body.avaliacao).toMatchObject({ versao: 1, media: '7.00', aprovadoNaAvaliacao: true, notas: Array(9).fill('7.00') });
+    for (const token of [studentToken, coordinatorToken]) expect((await read(record.fichaId, token)).body.vigente.id).toBe(result.body.avaliacao.id);
+    const saved = await context.prisma.avaliacaoEstagio.findUniqueOrThrow({ where: { id: result.body.avaliacao.id } });
+    expect(saved.notas[0]!.toFixed(2)).toBe('7.00');
+  });
+  it('compara média exata antes de arredondar, inclusive no limite', async () => {
+    const record = await prepare();
+    const result = await publish(record.fichaId, { notas: ['6.99', ...Array(8).fill('7')] });
+    expect(result.status).toBe(201);
+    expect(result.body.avaliacao).toMatchObject({ media: '7.00', aprovadoNaAvaliacao: false });
+    const corrected = await publish(record.fichaId, { versaoAnterior: 1, motivo: 'Correção de digitação.', notas: Array(9).fill('7') });
+    expect(corrected.body.avaliacao.aprovadoNaAvaliacao).toBe(true);
+  });
+  it('valida quantidade, precisão, intervalo, confirmação e campos extras', async () => {
+    const record = await prepare();
+    for (const input of [{ notas: Array(8).fill('7') }, { notas: Array(10).fill('7') }, { notas: Array(9).fill('10.01') }, { notas: Array(9).fill('-1') }, { notas: Array(9).fill('6.999') }, { notas: Array(9).fill(7) }, { confirmar: false }, { media: '10' }]) {
+      expect((await publish(record.fichaId, input)).status).toBe(400);
+    }
+    expect(await context.prisma.avaliacaoEstagio.count()).toBe(0);
+  });
+  it('impede edição por outros perfis e leitura por outro aluno/professora/instituição', async () => {
+    const record = await prepare();
+    for (const token of [studentToken, coordinatorToken]) expect((await publish(record.fichaId, {}, token)).status).toBe(403);
+    await context.prisma.usuario.updateMany({ where: { email: 'prof2@example.test' }, data: { coren: 'OUTRO' } });
+    expect((await publish(record.fichaId, {}, otherTeacherToken)).status).toBe(404);
+    for (const token of [otherStudentToken, otherTeacherToken]) expect((await read(record.fichaId, token)).status).toBe(404);
+    const institution = await context.prisma.instituicao.create({ data: { nome: 'Outra escola fictícia' } });
+    const other = await context.createCoordinator({ instituicaoId: institution.id, nome: 'Outra coordenação', email: 'outra-nota@example.test', senha: 'SenhaFicticiaParaTeste2026!' });
+    const bearer = await createTokenService(process.env.JWT_SECRET).issue(other.id, 0);
+    expect((await read(record.fichaId, bearer)).status).toBe(404);
+    expect((await get('/acompanhamento', bearer)).body.vinculos).toEqual([]);
+  });
+  it('corrige com motivo e versão atual, preserva notas e nome/COREN anteriores', async () => {
+    const record = await prepare();
+    const first = (await publish(record.fichaId)).body.avaliacao;
+    expect((await publish(record.fichaId)).status).toBe(409);
+    expect((await publish(record.fichaId, { versaoAnterior: 1 })).status).toBe(400);
+    await context.prisma.usuario.updateMany({ where: { email: 'prof@example.test' }, data: { nome: 'Novo nome', coren: 'NOVO-COREN' } });
+    const next = await publish(record.fichaId, { versaoAnterior: 1, motivo: 'Revisão da professora.', notas: Array(9).fill('8.5') });
+    expect(next.status).toBe(201);
+    const history = (await read(record.fichaId)).body;
+    expect(history.vigente).toMatchObject({ versao: 2, media: '8.50' });
+    expect(history.historico[1]).toMatchObject({ id: first.id, snapshot: { professora: { nome: 'Pessoa Fictícia', coren: 'COREN-FICTICIO' } } });
+    expect((await get(`/fichas/${record.fichaId}/avaliacao?pagina=2`, teacherToken)).body.historico).toEqual([]);
+  });
+  it('rejeita publicações concorrentes sem sobrescrever versão', async () => {
+    const record = await prepare();
+    const results = await Promise.all([publish(record.fichaId), publish(record.fichaId)]);
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    expect(await context.prisma.avaliacaoEstagio.count()).toBe(1);
+  });
+  it('permite avaliar ficha já fechada sem alterar seu fechamento ou suas horas', async () => {
+    const record = await prepare();
+    await post(`/registros/${record.id}/enviar`, { versao: 1 });
+    await approve([{ id: record.id, versao: 2 }]);
+    const summary = (await get(`/fichas/${record.fichaId}`, teacherToken)).body.ficha;
+    expect((await post(`/fichas/${record.fichaId}/fechar`, { revisao: summary.revisao, confirmar: true }, teacherToken)).status).toBe(201);
+    expect((await publish(record.fichaId)).status).toBe(201);
+    expect((await get(`/fichas/${record.fichaId}`, teacherToken)).body.ficha.fechamento.totalMinutos).toBe(270);
+  });
+  it('mantém RLS, notas válidas e histórico imutável no banco', async () => {
+    const record = await prepare();
+    const item = (await publish(record.fichaId)).body.avaliacao;
+    const db = context.prisma;
+    await expect(db.avaliacaoEstagio.update({ where: { id: item.id }, data: { motivo: 'Apagar histórico' } })).rejects.toThrow();
+    await expect(db.avaliacaoEstagio.delete({ where: { id: item.id } })).rejects.toThrow();
+    const saved = await db.avaliacaoEstagio.findUniqueOrThrow({ where: { id: item.id } });
+    await expect(db.avaliacaoEstagio.create({ data: { ...saved, snapshot: {}, id: undefined, versao: 2, motivo: 'Teste', notas: [] } })).rejects.toThrow();
+    const tables = await db.$queryRaw<{ relrowsecurity: boolean }[]>`SELECT relrowsecurity FROM pg_class WHERE relname = 'avaliacao_estagio'`;
+    expect(tables).toEqual([{ relrowsecurity: true }]);
+  });
+  it('acompanhamento inclui vínculos sem ficha, horas, pendências, fechamento e avaliação', async () => {
+    expect((await get('/acompanhamento', coordinatorToken)).body.vinculos[0]).toMatchObject({ fichaId: null, minutosAprovados: 0, avaliacao: null });
+    for (const token of [studentToken, teacherToken]) expect((await get('/acompanhamento', token)).status).toBe(403);
+    const record = await prepare();
+    await post(`/registros/${record.id}/enviar`, { versao: 1 }); await approve([{ id: record.id, versao: 2 }]); await publish(record.fichaId);
+    const row = (await get('/acompanhamento', coordinatorToken)).body.vinculos[0];
+    expect(row).toMatchObject({ fichaId: record.fichaId, minutosAprovados: 270, pendentes: 0, fichaFechada: false, avaliacao: { media: '7.00', aprovadoNaAvaliacao: true } });
+    expect((await get('/acompanhamento?pagina=2', coordinatorToken)).body.vinculos).toEqual([]);
+    expect((await get('/acompanhamento?pagina=0', coordinatorToken)).status).toBe(400);
+  });
+});
+
 describe('fechamento definitivo por vínculo (MVP)', () => {
   const summary = (id: string, bearer = teacherToken) => get(`/fichas/${id}`, bearer);
   const close = (id: string, revisao: string, bearer = teacherToken) => post(`/fichas/${id}/fechar`, { revisao, confirmar: true }, bearer);
