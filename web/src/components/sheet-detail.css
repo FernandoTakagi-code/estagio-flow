@@ -1,0 +1,16 @@
+.closure-confirmation {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  margin-block: 18px;
+  line-height: 1.6;
+}
+.closure-confirmation input[type=checkbox] {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  padding: 0;
+  margin-top: 3px;
+  accent-color: var(--primary);
+}

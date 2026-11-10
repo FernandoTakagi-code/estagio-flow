@@ -1,5 +1,7 @@
 # Aprovação de registros e horas cumpridas
 
+Atualização: o [fechamento definitivo por vínculo](sheet-closure.md) já está disponível no MVP. Depois do fechamento, os registros permanecem consultáveis e não podem ser reabertos. As referências abaixo ao fechamento como etapa futura descrevem a etapa original de aprovação.
+
 A professora responsável aprova de um a cinco registros enviados da mesma ficha por requisição. Um lote com registro inexistente, sem acesso, fora do estado enviado ou com versão antiga não aprova nenhum item. Falhas durante a gravação também desfazem o lote inteiro. A aprovação continua disponível para registros de vínculos encerrados; o fechamento definitivo da ficha será uma operação separada.
 
 ## Fluxo e histórico

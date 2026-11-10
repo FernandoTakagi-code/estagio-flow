@@ -5,6 +5,8 @@ import { createRecordSchema, editRecordSchema, versionSchema, returnRecordSchema
 import * as service from './service.js';
 import * as approval from './approval-service.js';
 import * as queries from './query-service.js';
+import * as closure from './closure-service.js';
+import { closeSheetSchema } from './schemas.js';
 
 const actor = (res: Response) => res.locals.actor as Actor;
 const id = (req: Request) => userIdSchema.parse(req.params.id);
@@ -15,6 +17,8 @@ export async function reopen(req: Request, res: Response) { const { versao, moti
 export async function approvals(req: Request, res: Response) { res.json(await approval.listApprovals(actor(res), id(req), page(req))); }
 export async function hours(req: Request, res: Response) { res.json(await approval.studentHours(actor(res), id(req), page(req))); }
 export async function sheets(req: Request, res: Response) { const pagina = page(req); res.json({ fichas: await queries.listSheets(actor(res), pagina), pagina, porPagina: 50 }); }
+export async function sheet(req: Request, res: Response) { res.json({ ficha: await closure.sheetDetail(actor(res), id(req)) }); }
+export async function closeSheet(req: Request, res: Response) { const input = closeSheetSchema.parse(req.body); res.status(201).json({ fechamento: await closure.closeSheet(actor(res), id(req), input.revisao) }); }
 export async function create(req: Request, res: Response) { res.status(201).json({ registro: await service.createRecord(actor(res), createRecordSchema.parse(req.body)) }); }
 export async function list(req: Request, res: Response) { const { pagina, fichaId, status } = recordQuerySchema.parse(req.query); res.json({ registros: await queries.listRecords(actor(res), pagina, { fichaId, status }), pagina, porPagina: 50 }); }
 export async function find(req: Request, res: Response) { res.json({ registro: await queries.findRecord(actor(res), id(req)) }); }

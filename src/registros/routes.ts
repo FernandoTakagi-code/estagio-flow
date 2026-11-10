@@ -9,6 +9,8 @@ export function createRecordsRouter() {
   router.get('/registros/:id/aprovacoes', controller.approvals);
   router.get('/alunos/:id/horas', controller.hours);
   router.get('/fichas', controller.sheets);
+  router.get('/fichas/:id', controller.sheet);
+  router.post('/fichas/:id/fechar', controller.closeSheet);
   router.post('/registros', controller.create);
   router.get('/registros', controller.list);
   router.get('/registros/:id', controller.find);

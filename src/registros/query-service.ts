@@ -14,12 +14,13 @@ export function panel(actor: Actor) {
 }
 export const listSheets = repository.listSheets;
 export async function listRecords(actor: Actor, pagina: number, filters: Parameters<typeof repository.listRecords>[2]) {
-  return (await repository.listRecords(actor, pagina, filters)).map(({ eventos, ...record }) => ({ ...presentRecord(record), motivoDevolucao: record.status === 'devolvido' ? eventos[0]?.motivo ?? null : null }));
+  return (await repository.listRecords(actor, pagina, filters)).map(({ eventos, ficha, ...record }) => ({ ...presentRecord(record), fichaFechada: Boolean(ficha.fechamento), motivoDevolucao: record.status === 'devolvido' ? eventos[0]?.motivo ?? null : null }));
 }
 export async function findRecord(actor: Actor, id: string) {
   const record = await repository.findRecord(actor, id);
   if (!record) throw new HttpError(404, 'Registro não encontrado.');
-  return presentRecord(record);
+  const { ficha, ...saved } = record;
+  return { ...presentRecord(saved), fichaFechada: Boolean(ficha.fechamento) };
 }
 export async function history(actor: Actor, id: string, pagina: number) {
   await findRecord(actor, id);

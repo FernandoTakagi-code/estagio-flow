@@ -1,5 +1,6 @@
 import { transaction } from '../lib/transaction.js';
 import * as repository from './repository.js';
+import { closed } from './closure-repository.js';
 import { validateRecordSession, validateUnscheduledRecord } from '../agenda/record-service.js';
 export { recordScope, sheetScope } from './access.js';
 import { HttpError } from '../lib/errors.js';
@@ -24,6 +25,7 @@ export async function lockContext(tx: Tx, actor: Actor, vinculoId: string, creat
   // Use the same lock order as enrollment transfers: student, group, then link.
   const link = await repository.lockLinkContext(tx, ref);
   if (actor.perfil === 'professora' && link.estagio.professoraId !== actor.id) throw new HttpError(404, 'Vínculo não encontrado.');
+  if ((await closed(tx, link.id))?.fechamento) throw new HttpError(409, 'Ficha fechada: não aceita alterações.');
   if (creating && (link.encerradoEm || link.estagio.encerradoEm)) throw new HttpError(409, 'Vínculo encerrado: não aceita novos registros.');
   return link;
 }
