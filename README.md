@@ -54,7 +54,7 @@ A coordenação pode cadastrar turmas, disciplinas e locais, matricular alunos e
 
 O aluno registra datas, horários e atividades na ficha do próprio vínculo. A API calcula a duração, impede horários sobrepostos e controla rascunho, envio, devolução com motivo e cancelamento. Cada alteração preserva um histórico. Consulte [registros e teste manual](docs/attendance.md).
 
-A professora aprova de um a cinco registros da mesma ficha por vez e pode reabrir um aprovado com motivo, preservando sua aprovação anterior. A API soma as horas aprovadas por aluno e disciplina, incluindo vínculos históricos. Consulte [aprovação, reabertura e totais](docs/approvals.md). Fechamento definitivo e relatórios continuam pendentes; frontend e painel da coordenação já estão disponíveis.
+A professora aprova de um a cinco registros da mesma ficha por vez e pode reabrir um aprovado com motivo, preservando sua aprovação anterior. A API soma as horas aprovadas por aluno e disciplina, incluindo vínculos históricos. Consulte [aprovação, reabertura e totais](docs/approvals.md). O [fechamento definitivo por vínculo](docs/sheet-closure.md) bloqueia alterações e preserva o snapshot com RT/COREN. A regra por vínculo é provisória para o MVP e não declara conclusão da disciplina. Relatórios continuam pendentes; frontend e painel da coordenação já estão disponíveis.
 
 ## Verificação e migrations
 
@@ -102,10 +102,10 @@ A interface React fica em `web/`, com login, convite, registros do aluno e revis
 
 - Configurar domínio e Resend para ativar convites por e-mail e recuperação de senha.
 - Revisar os documentos de uso e privacidade com a instituição; veja [e-mails e documentos](docs/email-privacy.md).
-- Fechamento definitivo das fichas com RT/COREN.
+- Confirmar a regra de fechamento por vínculo e o tratamento de correções com a instituição.
 - Relatórios e exportação em PDF.
-- Ampliação dos testes, CI e documentação OpenAPI.
-- Avaliação acadêmica e fechamento definitivo de fichas.
+- Ampliação dos testes e documentação OpenAPI. GitHub Actions verifica schema, tipos, testes e builds sem acesso ao Supabase.
+- Avaliação acadêmica e consolidação da conclusão por disciplina.
 
 ## Licença
 

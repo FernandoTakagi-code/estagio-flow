@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 const date = z.iso.date().refine((value) => value >= '2000-01-01' && value <= '2100-12-31', 'Data fora do intervalo permitido.');
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:mm.');
+export const closeSheetSchema = z.strictObject({ revisao: z.string().regex(/^[a-f0-9]{64}$/), confirmar: z.literal(true) });
 export const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
 const fields = { data: date, horaInicio: time, horaFim: time, atividades: z.string().trim().min(1).max(4000) };
 const ordered = (value: { horaInicio: string; horaFim: string }) => minutes(value.horaFim) > minutes(value.horaInicio);

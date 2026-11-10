@@ -5,16 +5,16 @@ import type { Prisma } from '../generated/prisma/client.js';
 import { recordScope, sheetScope } from './access.js';
 
 export const listSheets = (actor: Actor, pagina: number) => prisma.fichaEstagio.findMany({ where: sheetScope(actor),
-  include: { vinculo: { select: { estagioId: true, iniciadoEm: true, encerradoEm: true,
+  include: { fechamento: { select: { id: true, criadoEm: true, totalMinutos: true, dataUltimoDia: true, coren: true } }, vinculo: { select: { estagioId: true, iniciadoEm: true, encerradoEm: true,
     matricula: { select: { aluno: { select: { id: true, nome: true } } } },
     estagio: { select: { id: true, codigo: true, disciplina: { select: { id: true, nome: true } }, campoEstagio: { select: { nome: true } }, turma: { select: { codigo: true } } } },
   } } }, orderBy: [{ criadoEm: 'desc' }, { id: 'asc' }], take: 50, skip: (pagina - 1) * 50 });
 export const listRecords = (actor: Actor, pagina: number, filters: { fichaId?: string; status?: Prisma.RegistroEstagioWhereInput['status'] }) => prisma.registroEstagio.findMany({
   where: { AND: [recordScope(actor), filters] },
-  include: { eventos: { where: { acao: { in: ['devolvido', 'reaberto'] } }, select: { motivo: true }, orderBy: { versao: 'desc' }, take: 1 } },
+  include: { ficha: { select: { fechamento: { select: { id: true } } } }, eventos: { where: { acao: { in: ['devolvido', 'reaberto'] } }, select: { motivo: true }, orderBy: { versao: 'desc' }, take: 1 } },
   orderBy: [{ data: 'desc' }, { inicioMinuto: 'asc' }, { id: 'asc' }], take: 50, skip: (pagina - 1) * 50,
 });
-export const findRecord = (actor: Actor, id: string) => prisma.registroEstagio.findFirst({ where: { ...recordScope(actor), id } });
+export const findRecord = (actor: Actor, id: string) => prisma.registroEstagio.findFirst({ where: { ...recordScope(actor), id }, include: { ficha: { select: { fechamento: { select: { id: true } } } } } });
 export const history = (instituicaoId: string, registroId: string, pagina: number) => prisma.eventoRegistro.findMany({ where: { registroId, instituicaoId }, orderBy: { versao: 'desc' }, take: 50, skip: (pagina - 1) * 50 });
 
 export const panelGroups = (tx: Transaction, actor: Actor) => tx.$queryRaw<{ status: string; quantidade: number; minutos: number }[]>`

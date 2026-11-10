@@ -378,6 +378,159 @@ async function submitted(overrides: Record<string, unknown> = {}) {
 }
 const approve = (records: { id: string; versao: number }[], bearer = teacherToken) => post('/registros/aprovar', { registros: records.map(({ id, versao }) => ({ id, versao })) }, bearer);
 
+describe('fechamento definitivo por vínculo (MVP)', () => {
+  const summary = (id: string, bearer = teacherToken) => get(`/fichas/${id}`, bearer);
+  const close = (id: string, revisao: string, bearer = teacherToken) => post(`/fichas/${id}/fechar`, { revisao, confirmar: true }, bearer);
+  async function ready() {
+    await context.prisma.usuario.updateMany({ where: { email: 'prof@example.test' }, data: { coren: 'COREN-FICTICIO' } });
+    const record = await submitted();
+    expect((await approve([record])).status).toBe(200);
+    return record;
+  }
+
+  it('fecha carga parcial do vínculo e preserva horas, autoria, último dia e conteúdo', async () => {
+    const record = await ready();
+    const before = (await summary(record.fichaId)).body.ficha;
+    expect(before).toMatchObject({ totalMinutos: 270, pendentes: 0, dataUltimoDia: day, fechamento: null });
+    const result = await close(record.fichaId, before.revisao);
+    expect(result.status).toBe(201);
+    expect(result.body.fechamento).toMatchObject({ coren: 'COREN-FICTICIO', totalMinutos: 270, dataUltimoDia: day + 'T00:00:00.000Z' });
+    expect(result.body.fechamento.snapshot).toMatchObject({ regra: 'por_vinculo_mvp', professora: { papeis: ['preceptora', 'RT'] }, totalMinutos: 270 });
+    expect(result.body.fechamento.snapshot.registros).toHaveLength(1);
+    await context.prisma.usuario.updateMany({ where: { email: 'prof@example.test' }, data: { coren: 'COREN-ALTERADO', nome: 'Nome alterado' } });
+    for (const bearer of [studentToken, teacherToken, coordinatorToken]) {
+      const saved = (await summary(record.fichaId, bearer)).body.ficha.fechamento;
+      expect(saved.coren).toBe('COREN-FICTICIO');
+      expect(saved.snapshot.professora.nome).toBe('Pessoa Fictícia');
+    }
+    expect((await get(`/alunos/${studentId}/horas`)).body.disciplinas[0].minutosAprovados).toBe(270);
+    expect((await get(`/registros/${record.id}`)).body.registro.fichaFechada).toBe(true);
+    expect((await get('/fichas')).body.fichas[0].fechamento.totalMinutos).toBe(270);
+  });
+
+  it('bloqueia novas atividades, edição, envio, cancelamento, aprovação, reabertura e chamada', async () => {
+    const record = await ready();
+    const session = (await schedule({ data: '2026-01-16' })).body.sessao;
+    expect((await close(record.fichaId, (await summary(record.fichaId)).body.ficha.revisao)).status).toBe(201);
+    expect((await post('/registros', body({ data: '2026-01-16' }))).status).toBe(409);
+    expect((await edit(record.id, 3)).status).toBe(409);
+    for (const action of ['enviar', 'cancelar']) expect((await post(`/registros/${record.id}/${action}`, { versao: 3 })).status).toBe(409);
+    expect((await post(`/registros/${record.id}/reabrir`, { versao: 3, motivo: 'Corrigir.' }, teacherToken)).status).toBe(409);
+    expect((await approve([{ id: record.id, versao: 3 }])).status).toBe(409);
+    expect((await markSession(session.id)).status).toBe(409);
+    expect((await get(`/registros/${record.id}/historico`)).status).toBe(200);
+  });
+
+  it('exige professora responsável e isola alunos, grupos e instituições', async () => {
+    const record = await ready();
+    const revisao = (await summary(record.fichaId)).body.ficha.revisao;
+    for (const bearer of [studentToken, coordinatorToken]) expect((await close(record.fichaId, revisao, bearer)).status).toBe(403);
+    for (const bearer of [otherStudentToken, otherTeacherToken]) expect((await summary(record.fichaId, bearer)).status).toBe(404);
+    await context.prisma.usuario.updateMany({ where: { email: 'prof2@example.test' }, data: { coren: 'OUTRO-COREN' } });
+    expect((await close(record.fichaId, revisao, otherTeacherToken)).status).toBe(404);
+    const institution = await context.prisma.instituicao.create({ data: { nome: 'Outra escola fictícia' } });
+    const other = await context.createCoordinator({ instituicaoId: institution.id, nome: 'Outra coordenação', email: 'outra-fecha@example.test', senha: 'SenhaFicticiaParaTeste2026!' });
+    const bearer = await createTokenService(process.env.JWT_SECRET).issue(other.id, 0);
+    expect((await summary(record.fichaId, bearer)).status).toBe(404);
+    expect(await context.prisma.fichaFechamento.count()).toBe(0);
+  });
+
+  it('exige COREN, confirmação e resumo atual, sem aceitar campos extras', async () => {
+    const record = await submitted(); await approve([record]);
+    const revisao = (await summary(record.fichaId)).body.ficha.revisao;
+    expect((await close(record.fichaId, revisao)).status).toBe(409);
+    await context.prisma.usuario.updateMany({ where: { email: 'prof@example.test' }, data: { coren: 'COREN-FICTICIO' } });
+    for (const input of [{ revisao }, { revisao, confirmar: false }, { revisao, confirmar: true, totalMinutos: 9999 }, { revisao: 'invalida', confirmar: true }]) {
+      expect((await post(`/fichas/${record.fichaId}/fechar`, input, teacherToken)).status).toBe(400);
+    }
+    const extra = await create({ data: '2026-01-16' });
+    expect((await close(record.fichaId, revisao)).status).toBe(409);
+    await post(`/registros/${extra.id}/cancelar`, { versao: 1 });
+    expect((await close(record.fichaId, revisao)).status).toBe(409);
+    expect((await close(record.fichaId, (await summary(record.fichaId)).body.ficha.revisao)).status).toBe(201);
+  });
+
+  it('rejeita rascunhos, enviados, devolvidos e aprovado sem aprovação vigente', async () => {
+    const record = await ready();
+    const extra = await create({ data: '2026-01-16' });
+    const attempt = async () => close(record.fichaId, (await summary(record.fichaId)).body.ficha.revisao);
+    expect((await attempt()).status).toBe(409);
+    await post(`/registros/${extra.id}/enviar`, { versao: 1 });
+    expect((await attempt()).status).toBe(409);
+    await post(`/registros/${extra.id}/devolver`, { versao: 2, motivo: 'Corrigir.' }, teacherToken);
+    expect((await attempt()).status).toBe(409);
+    await context.prisma.registroEstagio.update({ where: { id: extra.id }, data: { status: 'aprovado' } });
+    expect((await attempt()).status).toBe(409);
+    expect(await context.prisma.fichaFechamento.count()).toBe(0);
+  });
+
+  it('não fecha ficha vazia ou só com cancelados', async () => {
+    await context.prisma.usuario.updateMany({ where: { email: 'prof@example.test' }, data: { coren: 'COREN-FICTICIO' } });
+    const record = await create();
+    await post(`/registros/${record.id}/cancelar`, { versao: 1 });
+    expect((await close(record.fichaId, (await summary(record.fichaId)).body.ficha.revisao)).status).toBe(409);
+  });
+
+  it('permite fechar vínculo histórico sem bloquear novo vínculo e mantém soma da disciplina', async () => {
+    const record = await ready();
+    const old = await context.prisma.vinculoEstagio.update({ where: { id: linkId }, data: { encerradoEm: new Date('2026-01-16T12:00:00Z') } });
+    const next = await context.prisma.vinculoEstagio.create({ data: { ...old, id: undefined, iniciadoEm: new Date('2026-01-17T12:00:00Z'), encerradoEm: null } });
+    expect((await close(record.fichaId, (await summary(record.fichaId)).body.ficha.revisao)).status).toBe(201);
+    const current = await submitted({ vinculoId: next.id, data: '2026-01-18' });
+    expect((await approve([current])).status).toBe(200);
+    expect((await get(`/alunos/${studentId}/horas`)).body.disciplinas[0].minutosAprovados).toBe(540);
+  });
+
+  it('fecha uma única vez quando duas confirmações concorrem', async () => {
+    const record = await ready();
+    const revisao = (await summary(record.fichaId)).body.ficha.revisao;
+    const results = await Promise.all([close(record.fichaId, revisao), close(record.fichaId, revisao)]);
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    expect(await context.prisma.fichaFechamento.count()).toBe(1);
+  });
+
+  it('protege fechamento, registros e reaberturas no SQL e habilita RLS', async () => {
+    const record = await ready();
+    const result = await close(record.fichaId, (await summary(record.fichaId)).body.ficha.revisao);
+    expect(result.status).toBe(201);
+    const db = context.prisma;
+    await expect(db.fichaFechamento.update({ where: { id: result.body.fechamento.id }, data: { snapshot: {} } })).rejects.toThrow();
+    await expect(db.fichaFechamento.delete({ where: { id: result.body.fechamento.id } })).rejects.toThrow();
+    await expect(db.registroEstagio.update({ where: { id: record.id }, data: { atividades: 'Alteração indevida' } })).rejects.toThrow();
+    await expect(db.registroEstagio.delete({ where: { id: record.id } })).rejects.toThrow();
+    const saved = await db.registroEstagio.findUniqueOrThrow({ where: { id: record.id } });
+    await expect(db.registroEstagio.create({ data: { ...saved, id: undefined } })).rejects.toThrow();
+    const approval = await db.aprovacaoRegistro.findFirstOrThrow({ where: { registroId: record.id } });
+    await expect(db.reaberturaAprovacao.create({ data: { instituicaoId: institutionId, aprovacaoId: approval.id, professoraId: approval.professoraId, motivo: 'Indevida' } })).rejects.toThrow();
+    const tables = await db.$queryRaw<{ relrowsecurity: boolean }[]>`SELECT relrowsecurity FROM pg_class WHERE relname = 'ficha_fechamento'`;
+    expect(tables).toEqual([{ relrowsecurity: true }]);
+  });
+
+  it('não fecha um resumo antigo se um novo registro vencer a corrida', async () => {
+    const record = await ready();
+    const revisao = (await summary(record.fichaId)).body.ficha.revisao;
+    const [closed, created] = await Promise.all([
+      close(record.fichaId, revisao), post('/registros', body({ data: '2026-01-16' })),
+    ]);
+    expect([closed.status, created.status].sort()).toEqual([201, 409]);
+    const result = (await summary(record.fichaId)).body.ficha;
+    if (closed.status === 201) { expect(result.pendentes).toBe(0); expect(result.fechamento.totalMinutos).toBe(270); }
+    else { expect(result.fechamento).toBeNull(); expect(result.pendentes).toBe(1); }
+  });
+
+  it('serializa reabertura e fechamento para não fechar horas retiradas', async () => {
+    const record = await ready();
+    const revisao = (await summary(record.fichaId)).body.ficha.revisao;
+    const [closed, reopened] = await Promise.all([
+      close(record.fichaId, revisao), post(`/registros/${record.id}/reabrir`, { versao: 3, motivo: 'Corrigir.' }, teacherToken),
+    ]);
+    expect([[201, 409], [409, 200]]).toContainEqual([closed.status, reopened.status]);
+    const result = (await summary(record.fichaId)).body.ficha;
+    if (closed.status === 201) { expect(reopened.status).toBe(409); expect(result.totalMinutos).toBe(270); }
+    else { expect(closed.status).toBe(409); expect(reopened.status).toBe(200); expect(result.fechamento).toBeNull(); expect(result.totalMinutos).toBe(0); }
+  });
+});
+
 describe('consultas do painel', () => {
   it('inclui o currículo completo mesmo antes de vincular o aluno às outras disciplinas', async () => {
     const extra = await context.prisma.disciplina.create({ data: { instituicaoId: institutionId, codigo: 'SEM-VINCULO', nome: 'Disciplina ainda não iniciada', cargaHorariaTotal: 30 } });

@@ -53,12 +53,13 @@ export function RecordDetail({ initial, user, onClose, onChanged }: { initial: R
     event.preventDefault(); const form = new FormData(event.currentTarget);
     void mutate(`/frequencia/registros/${record.id}`, { versao: record.versao, data: form.get('data'), horaInicio: form.get('horaInicio'), horaFim: form.get('horaFim'), atividades: form.get('atividades') }, 'PUT');
   }
-  const editable = user.perfil === 'aluno' && ['rascunho', 'devolvido'].includes(record.status);
+  const editable = !record.fichaFechada && user.perfil === 'aluno' && ['rascunho', 'devolvido'].includes(record.status);
   const lastReason = events.find((item) => item.motivo)?.motivo;
   return <Modal title="Registro de estágio" description={`Versão ${record.versao} · ${new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(`${record.data}T12:00:00Z`))}`} onClose={onClose}>
     {error && <p className="form-error" role="alert">{error}</p>}{notice && <p className="notice" role="status">{notice}</p>}
     {loading ? <p role="status" className="loading">Carregando registro…</p> : <>
       <div className="detail-status"><StatusLabel status={record.status} /><span>{hours(record.duracaoMinutos)}</span></div>
+      {record.fichaFechada && <p className="notice">Ficha fechada. Este registro está disponível somente para consulta.</p>}
       {record.status === 'devolvido' && lastReason && <p className="return-reason"><strong>O que precisa ser corrigido</strong>{lastReason}</p>}
       {editable ? <form className="record-form" onSubmit={save} onChange={() => setDirty(true)} key={`${record.id}-${record.versao}`}>
         <label>Data<input name="data" type="date" defaultValue={record.data} max={today()} required /></label>
@@ -69,7 +70,7 @@ export function RecordDetail({ initial, user, onClose, onChanged }: { initial: R
         <Button variant="ghost" size="small" disabled={busy} onClick={() => setCancelConfirm(true)}>Cancelar registro</Button>
         {cancelConfirm && <div className="notice"><p>O registro será cancelado e seu histórico será preservado.</p><Button variant="danger" disabled={busy} onClick={() => void mutate(`/frequencia/registros/${record.id}/cancelar`, { versao: record.versao })}>Confirmar cancelamento</Button><Button variant="ghost" onClick={() => setCancelConfirm(false)}>Voltar</Button></div>}
       </form> : <div className="readonly-record"><span>{record.horaInicio} – {record.horaFim}</span><p>{record.atividades}</p></div>}
-      {user.perfil === 'professora' && <div className="review-actions">
+      {user.perfil === 'professora' && !record.fichaFechada && <div className="review-actions">
         {record.status === 'enviado' && <><Button disabled={busy} onClick={() => void mutate('/frequencia/registros/aprovar', { registros: [{ id: record.id, versao: record.versao }] })}>Aprovar registro</Button><Button variant="ghost" disabled={busy} onClick={() => setReasonAction('devolver')}>Devolver para correção</Button></>}
         {record.status === 'aprovado' && <Button variant="ghost" disabled={busy} onClick={() => setReasonAction('reabrir')}>Reabrir registro</Button>}
         {reasonAction && <form className="reason-form" onSubmit={(event) => { event.preventDefault(); void mutate(`/frequencia/registros/${record.id}/${reasonAction}`, { versao: record.versao, motivo: reason }); }}><label>Motivo da {reasonAction === 'reabrir' ? 'reabertura' : 'devolução'}<textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={1000} required rows={3} /></label><Button type="submit" disabled={busy || !reason.trim()}>Confirmar {reasonAction === 'reabrir' ? 'reabertura' : 'devolução'}</Button><Button variant="ghost" disabled={busy} onClick={() => setReasonAction(null)}>Voltar</Button></form>}
