@@ -3,10 +3,13 @@ import { randomBytes } from 'node:crypto';
 import type { Actor } from '../../src/auth/service.js';
 
 // This helper always starts its own in-memory PostgreSQL before importing the app.
-const context = await startTestDatabase(55443);
+const demoPort = Number(process.env.DEMO_API_PORT ?? 3101);
+const databasePort = Number(process.env.DEMO_DATABASE_PORT ?? 55443);
+if (![demoPort, databasePort].every((port) => Number.isInteger(port) && port >= 1024 && port <= 65535)) throw new Error('Portas de demonstração inválidas.');
+const context = await startTestDatabase(databasePort);
 process.env.EMAIL_MODE = 'capture';
 process.env.EMAIL_ENCRYPTION_KEY = randomBytes(32).toString('hex');
-process.env.PUBLIC_APP_URL = 'http://127.0.0.1:5173';
+process.env.PUBLIC_APP_URL = process.env.DEMO_APP_URL ?? 'http://127.0.0.1:5173';
 process.env.DEMO_EMAIL_INBOX = 'true';
 process.env.LEGAL_DEMO_MODE = 'true';
 if (new URL(process.env.DATABASE_URL!).hostname !== '127.0.0.1') throw new Error('Somente banco temporário local.');
@@ -46,7 +49,21 @@ for (const [data, atividades, status, horaFim] of [
 const agenda = await import('../../src/agenda/service.js');
 await agenda.create(coordinator as Actor, { estagioId: first.estagioId, data: '2026-11-02', horaInicio: '07:00', horaFim: '13:00' });
 await agenda.create(coordinator as Actor, { estagioId: first.estagioId, data: '2026-11-04', horaInicio: '07:00', horaFim: '13:00' });
-const server = context.createApp().listen(3101, '127.0.0.1', () => console.log('API de teste local: http://127.0.0.1:3101. Dados fictícios em memória; Supabase não é utilizado.'));
+// Completed fictional example, alongside Ana's pending records and Bruno's empty sheet.
+const completedStudent = await db.usuario.create({ data: { instituicaoId: institution.id, nome: 'Carla Demonstração', email: 'concluido@example.test', perfil: 'aluno', senhaHash: saved.senhaHash } });
+const completedEnrollment = await db.matriculaTurma.create({ data: { instituicaoId: institution.id, turmaId: turma.id, alunoId: completedStudent.id, criadoPorId: coordinator.id, iniciadoEm: new Date('2020-01-01T12:00:00Z') } });
+const completedLink = await db.vinculoEstagio.create({ data: { instituicaoId: institution.id, estagioId: first.estagioId, matriculaId: completedEnrollment.id, turmaId: turma.id, disciplinaId: first.disciplinaId, alunoId: completedStudent.id, criadoPorId: coordinator.id, iniciadoEm: new Date('2020-01-01T12:00:00Z') } });
+const session = await agenda.create(coordinator as Actor, { estagioId: first.estagioId, data: '2026-11-05', horaInicio: '07:00', horaFim: '13:00' });
+await agenda.mark(teacher as Actor, session.id, { vinculoId: completedLink.id, versao: 0, situacao: 'presente' });
+const activity = await createRecord(completedStudent as Actor, { vinculoId: completedLink.id, sessaoId: session.id, data: '2026-11-05', horaInicio: '07:00', horaFim: '13:00', atividades: 'Atividade fictícia supervisionada, sem dados de pacientes.' });
+const sent = await changeRecord(completedStudent as Actor, activity.id, activity.versao, 'enviar');
+await approveRecords(teacher as Actor, { registros: [{ id: sent.id, versao: sent.versao }] });
+const assessment = await import('../../src/avaliacao/service.js');
+await assessment.publish(teacher as Actor, activity.fichaId, { notas: ['8', '9', '8.5', '8', '9', '8', '9', '8', '9'], versaoAnterior: 0, confirmar: true });
+const closure = await import('../../src/registros/closure-service.js');
+const summary = await closure.sheetDetail(teacher as Actor, activity.fichaId);
+await closure.closeSheet(teacher as Actor, activity.fichaId, summary.revisao);
+const server = context.createApp().listen(demoPort, '127.0.0.1', () => console.log(`API de teste local: http://127.0.0.1:${demoPort}. Dados fictícios em memória; Supabase não é utilizado.`));
 const { startEmailWorker } = await import('../../src/email/service.js');
 const stopEmails = startEmailWorker(500);
 async function shutdown() { stopEmails(); server.close(); await db.$disconnect(); await context.socket.stop(); await context.database.close(); process.exit(0); }
